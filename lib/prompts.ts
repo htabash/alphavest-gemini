@@ -1,35 +1,35 @@
 export function signalsPrompt(lang: string) {
   const ar = lang === 'ar'
-  return `You are a professional US stock market analyst. Generate today's top 8 trading recommendations.
+  return `You are a professional US stock market analyst for May 2026. Generate today's top 8 trading recommendations.
 ${ar ? 'ALL text fields must be in Arabic.' : 'All text in English.'}
 Return ONLY valid JSON matching this exact schema:
 {
-  "date": "May 4, 2026",
+  "date": "May 6, 2026",
   "marketSummary": {
     "sp500": "+0.8%",
     "nasdaq": "+1.2%",
     "sentiment": "Bullish",
     "vix": "14.2",
-    "note": "2-sentence market overview specific to current conditions"
+    "note": "2-sentence market overview for current May 2026 conditions"
   },
   "signals": [
     {
       "ticker": "NVDA",
       "companyName": "NVIDIA Corporation",
       "sector": "Technology",
-      "price": 892.40,
-      "priceChangePct": 3.28,
+      "price": 196.50,
+      "priceChangePct": -0.96,
       "signal": "strongBuy",
       "confidence": 88,
-      "entry": "$880-895",
-      "stopLoss": "$850",
-      "target1": "$960",
-      "target2": "$1050",
+      "entry": "$193-198",
+      "stopLoss": "$185",
+      "target1": "$215",
+      "target2": "$235",
       "timeframe": "1-2 weeks",
-      "rsi": 68.4,
+      "rsi": 52.4,
       "macd": "Bullish crossover",
-      "trend": "Strong uptrend",
-      "reasoning": "2-sentence specific reasoning for this trade today",
+      "trend": "Uptrend",
+      "reasoning": "2-sentence specific reasoning for this trade today based on current price around $196",
       "catalyst": "Key near-term catalyst"
     }
   ],
@@ -37,18 +37,23 @@ Return ONLY valid JSON matching this exact schema:
   "topSell": "TSLA",
   "watchlist": ["AAPL","MSFT","AMZN"]
 }
-Rules:
+CRITICAL RULES:
+- Use CURRENT May 2026 prices: NVDA~$196, AAPL~$207, MSFT~$434, TSLA~$285, AMZN~$203, META~$580, GOOGL~$165, JPM~$260, AMAT~$175, AMD~$108
+- Entry must be within 2-3% of current price
+- StopLoss must be 3-6% below current price
+- Target1 must be 8-12% above current price
+- Target2 must be 15-20% above current price
 - Include exactly 8 signals: 4-5 buy/strongBuy, 1-2 sell/strongSell, 1-2 hold
 - signal values: strongBuy | buy | hold | sell | strongSell
-- confidence: integer 60-95
-- Use realistic accurate market data for May 2026
-- Make each signal specific and actionable with real price levels`
+- confidence: integer 60-95`
 }
 
-export function analyzePrompt(ticker: string, lang: string) {
+export function analyzePrompt(ticker: string, lang: string, price?: number) {
   const ar = lang === 'ar'
+  const priceHint = price ? `Current real market price: $${price}. Base ALL price levels on this.` : 'Use current May 2026 real market price.'
   return `You are a professional financial analyst. Analyze US stock: ${ticker}
 ${ar ? 'ALL text fields must be in Arabic.' : 'All text in English.'}
+${priceHint}
 Return ONLY valid JSON matching this schema exactly:
 {
   "ticker": "${ticker}",
@@ -57,51 +62,52 @@ Return ONLY valid JSON matching this schema exactly:
   "industry": "Semiconductors",
   "exchange": "NASDAQ",
   "description": "3-sentence description of business model and competitive position.",
-  "price": 892.40,
-  "priceChange": 28.30,
-  "priceChangePct": 3.28,
-  "open": 868.00,
-  "high": 897.50,
-  "low": 862.10,
-  "volume": "42.3M",
-  "avgVolume": "38.1M",
-  "week52High": 974.0,
-  "week52Low": 410.0,
-  "marketCap": "$2.19T",
+  "price": 196.50,
+  "priceChange": -1.90,
+  "priceChangePct": -0.96,
+  "open": 197.20,
+  "high": 200.24,
+  "low": 196.03,
+  "volume": "109.9M",
+  "avgVolume": "245.0M",
+  "week52High": 216.83,
+  "week52Low": 110.82,
+  "marketCap": "$478B",
   "beta": 1.68,
   "signal": "buy",
   "confidence": 82,
-  "entry": "$880-895",
-  "stopLoss": "$850",
-  "target1": "$960",
-  "target2": "$1050",
+  "entry": "$193-198",
+  "stopLoss": "$185",
+  "target1": "$215",
+  "target2": "$235",
   "timeframe": "2-4 weeks",
   "score": 78,
   "scoreBreakdown": { "fundamental": 75, "technical": 82, "sentiment": 78, "momentum": 80 },
   "fundamentals": {
-    "revenue": "$60.9B", "revenueGrowth": "+122%", "netIncome": "$29.8B",
-    "netMargin": "48.9%", "eps": "$11.93", "epsGrowth": "+168%",
-    "pe": 62.1, "forwardPE": 35.4, "peg": 0.37,
-    "ebitda": "$33.4B", "freeCashFlow": "$26.9B",
+    "revenue": "$130.5B", "revenueGrowth": "+122%", "netIncome": "$72.9B",
+    "netMargin": "55.8%", "eps": "$2.94", "epsGrowth": "+168%",
+    "pe": 36.2, "forwardPE": 28.4, "peg": 0.37,
+    "ebitda": "$81.4B", "freeCashFlow": "$60.9B",
     "debtEquity": 0.42, "currentRatio": 4.17,
     "roe": "91.4%", "roa": "45.2%", "dividendYield": "0.03%"
   },
   "technical": {
-    "trend": "Strong uptrend", "rsi": 68.4, "rsiSignal": "Neutral",
-    "macd": "Bullish crossover", "macdValue": 12.8,
-    "sma20": 850.20, "sma50": 820.50, "sma200": 680.30,
-    "bollingerUpper": 920.0, "bollingerLower": 810.0,
-    "support1": 850.0, "support2": 820.0, "support3": 780.0,
-    "resistance1": 920.0, "resistance2": 974.0, "atr": 28.4, "obv": "Rising"
+    "trend": "Uptrend", "rsi": 52.4, "rsiSignal": "Neutral",
+    "macd": "Bullish", "macdValue": 2.8,
+    "sma20": 192.0, "sma50": 185.0, "sma200": 155.0,
+    "bollingerUpper": 210.0, "bollingerLower": 180.0,
+    "support1": 190.0, "support2": 185.0, "support3": 175.0,
+    "resistance1": 205.0, "resistance2": 216.83,
+    "atr": 5.4, "obv": "Rising"
   },
   "historicalPrices": {
-    "1M": [851,862,858,874,869,882,888,875,890,885,892,880,876,885,889,895,891,888,890,892],
-    "3M": [750,762,755,778,771,790,810,805,820,815,830,825,845,840,855,862,870,880,888,892],
-    "6M": [620,635,628,650,645,670,690,685,710,720,740,750,770,780,800,820,840,865,880,892],
-    "1Y": [480,495,510,525,540,530,560,575,590,610,630,620,650,680,700,730,760,800,850,892]
+    "1M": [183,185,182,187,186,190,192,189,194,193,196,194,191,195,197,199,198,196,197,196],
+    "3M": [155,158,154,162,160,165,170,168,175,173,180,178,185,183,190,194,196,198,197,196],
+    "6M": [125,128,124,132,130,138,145,143,152,150,160,158,168,165,175,183,190,195,197,196],
+    "1Y": [110,113,111,118,116,122,130,128,138,136,148,145,158,155,168,178,188,194,197,196]
   },
   "analysis": {
-    "summary": "4-5 sentence investment thesis specific to ${ticker} with current catalysts.",
+    "summary": "4-5 sentence investment thesis specific to ${ticker} with current May 2026 catalysts.",
     "bullish": ["Specific bullish factor 1","Specific bullish factor 2","Specific bullish factor 3","Specific bullish factor 4"],
     "bearish": ["Specific risk 1","Specific risk 2","Specific risk 3"],
     "catalysts": ["Near-term catalyst 1","Near-term catalyst 2"]
@@ -114,18 +120,17 @@ Return ONLY valid JSON matching this schema exactly:
   ],
   "analystRatings": {
     "buy": 28, "hold": 8, "sell": 2,
-    "avgTarget": "$980", "highTarget": "$1200", "lowTarget": "$680",
+    "avgTarget": "$225", "highTarget": "$260", "lowTarget": "$165",
     "consensus": "Strong Buy"
   },
   "competitors": [
-    {"ticker":"AMD","name":"Advanced Micro Devices","price":168.40,"marketCap":"$273B","pe":148.2,"signal":"hold","ytd":"-8.4%"},
+    {"ticker":"AMD","name":"Advanced Micro Devices","price":108.40,"marketCap":"$175B","pe":48.2,"signal":"hold","ytd":"-8.4%"},
     {"ticker":"INTC","name":"Intel Corporation","price":21.30,"marketCap":"$91B","pe":null,"signal":"sell","ytd":"-42.1%"},
     {"ticker":"AVGO","name":"Broadcom","price":188.60,"marketCap":"$876B","pe":38.4,"signal":"buy","ytd":"+22.8%"}
   ]
 }
-Rules:
+CRITICAL: Entry=$${price ? Math.round(price*0.98) : 'price*0.98'}-$${price ? Math.round(price*1.01) : 'price*1.01'}, StopLoss=$${price ? Math.round(price*0.94) : 'price*0.94'}, Target1=$${price ? Math.round(price*1.10) : 'price*1.10'}, Target2=$${price ? Math.round(price*1.18) : 'price*1.18'}
 - signal: strongBuy | buy | hold | sell | strongSell
 - score & confidence: integers 0-100
-- Use real accurate data for ${ticker}
-- historicalPrices arrays must have exactly 20 numbers each`
+- historicalPrices: exactly 20 numbers each, ending near current price $${price || 'current'}`
 }
