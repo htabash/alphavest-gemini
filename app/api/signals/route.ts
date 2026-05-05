@@ -3,6 +3,8 @@ import { generateJSON } from '@/lib/groq'
 import { signalsPrompt } from '@/lib/prompts'
 import { getMultipleQuotes } from '@/lib/market'
 
+const TICKERS = ['NVDA','AAPL','MSFT','TSLA','AMZN','META','GOOGL','JPM','AMAT','AMD','NFLX','CRM']
+
 let cache: { data: unknown; time: number } | null = null
 const CACHE_MS = 60 * 60 * 1000
 
@@ -29,12 +31,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data)
     }
 
-    const aiData = await generateJSON(signalsPrompt(lang))
+    // Get real prices first
+    const quotes = await getMultipleQuotes(TICKERS)
+    const priceContext = TICKERS
+      .filter(t => quotes[t])
+      .map(t => `${t}=$${quotes[t].price}`)
+      .join(', ')
+
+    const aiData = await generateJSON(signalsPrompt(lang, priceContext))
     const data = aiData as Record<string, unknown>
 
+    // Override with real prices
     if (data?.signals && Array.isArray(data.signals)) {
-      const tickers = (data.signals as Array<Record<string, unknown>>).map(s => s.ticker as string)
-      const quotes = await getMultipleQuotes(tickers)
       data.signals = (data.signals as Array<Record<string, unknown>>).map(s => {
         const q = quotes[s.ticker as string]
         return q ? { ...s, price: q.price, priceChange: q.priceChange, priceChangePct: q.priceChangePct } : s
