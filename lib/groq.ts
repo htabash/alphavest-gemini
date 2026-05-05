@@ -3,7 +3,7 @@ import Groq from 'groq-sdk'
 export async function generateJSON(prompt: string): Promise<unknown> {
   const client = new Groq({ apiKey: process.env.GROQ_API_KEY })
   const completion = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'llama-3.1-8b-instant',
     messages: [
       { role: 'system', content: 'You are an expert financial analyst. Always respond with valid JSON only. No markdown, no backticks, no explanation.' },
       { role: 'user', content: prompt }
