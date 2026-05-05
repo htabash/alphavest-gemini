@@ -1,5 +1,6 @@
-export function signalsPrompt(lang: string) {
+export function signalsPrompt(lang: string, priceContext?: string) {
   const ar = lang === 'ar'
+  const prices = priceContext ? `\nCURRENT REAL PRICES (use these EXACTLY for entry/stop/target calculations): ${priceContext}` : ''
   return `You are a professional US stock market analyst for May 2026. Generate today's top 8 trading recommendations.
 ${ar ? 'ALL text fields must be in Arabic.' : 'All text in English.'}
 Return ONLY valid JSON matching this exact schema:
@@ -45,7 +46,8 @@ CRITICAL RULES:
 - Target2 must be 15-20% above current price
 - Include exactly 8 signals: 4-5 buy/strongBuy, 1-2 sell/strongSell, 1-2 hold
 - signal values: strongBuy | buy | hold | sell | strongSell
-- confidence: integer 60-95`
+- confidence: integer 60-95
+${prices}`
 }
 
 export function analyzePrompt(ticker: string, lang: string, price?: number) {
