@@ -26,6 +26,14 @@ export async function POST(req: NextRequest) {
       data.week52Low = quote.week52Low
       data.marketCap = quote.marketCap
       data.beta = quote.beta ?? data.beta
+      if (quote.history1M.length > 0) {
+  data.historicalPrices = {
+    '1M': quote.history1M,
+    '3M': quote.history3M.length > 0 ? quote.history3M : quote.history1M,
+    '6M': quote.history6M.length > 0 ? quote.history6M : quote.history1M,
+    '1Y': quote.history1Y.length > 0 ? quote.history1Y : quote.history1M,
+  }
+}
       const fm = data.fundamentals as Record<string, unknown>
       if (fm && quote.pe) fm.pe = quote.pe
       if (fm && quote.eps) fm.eps = `$${quote.eps}`
