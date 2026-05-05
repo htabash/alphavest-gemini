@@ -10,7 +10,7 @@ export async function generateJSON(prompt: string): Promise<unknown> {
     ],
     temperature: 0.7,
     max_tokens: 3000,
-    response_format: { type: 'json_object' }
+   
   })
   const text = completion.choices[0]?.message?.content || '{}'
   const clean = text.replace(/```json|```/g, '').trim()
