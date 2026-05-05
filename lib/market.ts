@@ -25,33 +25,27 @@ async function fetchHistory(ticker: string, range: string, interval: string): Pr
     if (!res.ok) return []
     const json = await res.json()
     const closes = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []
-    const filtered = closes.filter((v: number | null) => v !== null && v !== undefined)
-    // Sample to 20 points
+    const filtered = closes.filter((v: number | null) => v !== null)
     if (filtered.length <= 20) return filtered.map((v: number) => +v.toFixed(2))
     const step = Math.floor(filtered.length / 20)
-    const sampled = []
-    for (let i = 0; i < 20; i++) {
-      sampled.push(+filtered[Math.min(i * step, filtered.length - 1)].toFixed(2))
-    }
-    sampled[sampled.length - 1] = +filtered[filtered.length - 1].toFixed(2)
+    const sampled = Array.from({length: 20}, (_, i) => +filtered[Math.min(i * step, filtered.length-1)].toFixed(2))
+    sampled[19] = +filtered[filtered.length-1].toFixed(2)
     return sampled
-  } catch {
-    return []
-  }
+  } catch { return [] }
 }
 
 export async function getQuote(ticker: string): Promise<QuoteData | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 60 } })
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,regularMarketVolume,averageDailyVolume3Month,fiftyTwoWeekHigh,fiftyTwoWeekLow,marketCap,trailingPE,epsTrailingTwelveMonths,beta`
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }, next: { revalidate: 60 } })
     if (!res.ok) return null
     const json = await res.json()
-    const meta = json?.chart?.result?.[0]?.meta
-    if (!meta) return null
-    const price = +(meta.regularMarketPrice || 0)
-    const prev = +(meta.chartPreviousClose || meta.previousClose || price)
-    const change = +(price - prev).toFixed(2)
-    const changePct = prev > 0 ? +((change / prev) * 100).toFixed(2) : 0
+    const q = json?.quoteResponse?.result?.[0]
+    if (!q) return null
+
+    const price = +(q.regularMarketPrice || 0)
+    const change = +(q.regularMarketChange?.toFixed(2) || 0)
+    const changePct = +(q.regularMarketChangePercent?.toFixed(2) || 0)
 
     const [h1M, h3M, h6M, h1Y] = await Promise.all([
       fetchHistory(ticker, '1mo', '1d'),
@@ -65,15 +59,17 @@ export async function getQuote(ticker: string): Promise<QuoteData | null> {
       price,
       priceChange: change,
       priceChangePct: changePct,
-      open: +(meta.regularMarketOpen || price),
-      high: +(meta.regularMarketDayHigh || price),
-      low: +(meta.regularMarketDayLow || price),
-      volume: meta.regularMarketVolume ? fVol(meta.regularMarketVolume) : '—',
-      avgVolume: meta.averageDailyVolume3Month ? fVol(meta.averageDailyVolume3Month) : '—',
-      week52High: +(meta.fiftyTwoWeekHigh || 0),
-      week52Low: +(meta.fiftyTwoWeekLow || 0),
-      marketCap: meta.marketCap ? fMcap(meta.marketCap) : '—',
-      pe: null, eps: null, beta: null,
+      open: +(q.regularMarketOpen || price),
+      high: +(q.regularMarketDayHigh || price),
+      low: +(q.regularMarketDayLow || price),
+      volume: q.regularMarketVolume ? fVol(q.regularMarketVolume) : '—',
+      avgVolume: q.averageDailyVolume3Month ? fVol(q.averageDailyVolume3Month) : '—',
+      week52High: +(q.fiftyTwoWeekHigh || 0),
+      week52Low: +(q.fiftyTwoWeekLow || 0),
+      marketCap: q.marketCap ? fMcap(q.marketCap) : '—',
+      pe: q.trailingPE ? +q.trailingPE.toFixed(1) : null,
+      eps: q.epsTrailingTwelveMonths ? +q.epsTrailingTwelveMonths.toFixed(2) : null,
+      beta: q.beta ? +q.beta.toFixed(2) : null,
       history1M: h1M,
       history3M: h3M,
       history6M: h6M,
