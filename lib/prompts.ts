@@ -4,7 +4,7 @@ export function signalsPrompt(lang: string, priceContext?: string) {
     ? `\nCURRENT REAL PRICES (use these EXACTLY for all calculations): ${priceContext}`
     : ''
 
-  return `You are a professional US stock market analyst for May 2026. Generate today's top 16 trading recommendations across all major sectors.
+  return `You are a professional US stock market analyst for May 2026. Generate today's top 12 trading recommendations across all major sectors.
 ${ar ? 'ALL text fields must be in Arabic.' : 'All text in English.'}
 Return ONLY valid JSON matching this exact schema:
 {
@@ -42,17 +42,16 @@ Return ONLY valid JSON matching this exact schema:
   "watchlist": ["TICKER1","TICKER2","TICKER3","TICKER4","TICKER5"]
 }
 
-SECTOR DISTRIBUTION — MANDATORY 16 signals:
-- Technology (4 signals): NVDA, AAPL, MSFT, GOOGL, META, AMD, AMAT, INTC, PLTR, ARM, CRM, ORCL, ADBE, CRWD, PANW, SNOW, DDOG, NET, ZS, QCOM, MU
+SECTOR DISTRIBUTION — MANDATORY 12 signals:
+- Technology (3 signals): NVDA, AAPL, MSFT, GOOGL, META, AMD, AMAT, INTC, PLTR, ARM, CRM, ORCL, ADBE, CRWD, PANW, SNOW, DDOG, NET, ZS, QCOM, MU
 - Financials (2 signals): JPM, GS, MS, V, MA, BAC, WFC, PYPL, SQ, COIN, BLK, AXP, C, COF, SCHW
-- Energy (2 signals): XOM, CVX, COP, SLB, EOG, MPC, PSX, VLO, OXY
+- Energy (1 signal): XOM, CVX, COP, SLB, EOG, MPC, PSX, VLO, OXY
 - Healthcare (2 signals): LLY, UNH, JNJ, ABBV, MRK, PFE, TMO, AMGN, GILD, ISRG, VRTX, REGN
 - Consumer Discretionary (2 signals): TSLA, AMZN, HD, LOW, MCD, SBUX, NKE, COST, TGT, DIS, NFLX
-- Industrials (2 signals): BA, CAT, DE, GE, HON, UPS, FDX, RTX, LMT
-- Other/Mixed (2 signals): WMT, PG, KO, PEP, ABT, UBER, SHOP, ABNB, DASH
+- Industrials (1 signal): BA, CAT, DE, GE, HON, UPS, FDX, RTX, LMT
+- Other/Mixed (1 signal): WMT, PG, KO, PEP, UBER, SHOP, ABNB
 
-SIGNAL MIX per sector: each sector must have at least 1 buy/strongBuy
-TOTAL MIX across all 16: 8-10 buy/strongBuy, 3-4 sell/strongSell, 2-3 hold
+SIGNAL MIX: 6-7 buy/strongBuy, 2-3 sell/strongSell, 1-2 hold
 
 CRITICAL RULES:
 - VARIETY IS MANDATORY: Choose DIFFERENT stocks each time — rotate broadly
@@ -116,18 +115,22 @@ export function analyzePrompt(ticker: string, lang: string, price?: number) {
   const w52High   = p ? Math.round(p * 1.25)  : '[estimate]'
   const w52Low    = p ? Math.round(p * 0.60)  : '[estimate]'
 
-  // ✅ Competitors حقيقيون لكل سهم
   const competitorMap: Record<string, string> = {
-    NVDA: 'For NVDA use competitors: AMD (Advanced Micro Devices), INTC (Intel Corporation), QCOM (Qualcomm)',
-    AAPL: 'For AAPL use competitors: MSFT (Microsoft), GOOGL (Alphabet), SMSN (Samsung Electronics)',
-    MSFT: 'For MSFT use competitors: GOOGL (Alphabet), AAPL (Apple), CRM (Salesforce)',
-    TSLA: 'For TSLA use competitors: RIVN (Rivian), GM (General Motors), F (Ford Motor)',
-    AMZN: 'For AMZN use competitors: MSFT (Microsoft Azure), GOOGL (Google Cloud), WMT (Walmart)',
-    META: 'For META use competitors: GOOGL (Alphabet), SNAP (Snap), PINS (Pinterest)',
-    GOOGL: 'For GOOGL use competitors: MSFT (Microsoft), META (Meta), AMZN (Amazon)',
-    JPM: 'For JPM use competitors: BAC (Bank of America), WFC (Wells Fargo), GS (Goldman Sachs)',
-    AMD: 'For AMD use competitors: NVDA (NVIDIA), INTC (Intel), QCOM (Qualcomm)',
-    NFLX: 'For NFLX use competitors: DIS (Walt Disney), PARA (Paramount), WBD (Warner Bros)',
+    NVDA: 'For NVDA use competitors: AMD, INTC, QCOM',
+    AAPL: 'For AAPL use competitors: MSFT, GOOGL, DELL',
+    MSFT: 'For MSFT use competitors: GOOGL, AAPL, CRM',
+    TSLA: 'For TSLA use competitors: RIVN, GM, F',
+    AMZN: 'For AMZN use competitors: MSFT, GOOGL, WMT',
+    META: 'For META use competitors: GOOGL, SNAP, PINS',
+    GOOGL: 'For GOOGL use competitors: MSFT, META, AMZN',
+    JPM: 'For JPM use competitors: BAC, WFC, GS',
+    AMD: 'For AMD use competitors: NVDA, INTC, QCOM',
+    NFLX: 'For NFLX use competitors: DIS, PARA, WBD',
+    GS: 'For GS use competitors: MS, JPM, BAC',
+    V: 'For V use competitors: MA, PYPL, AXP',
+    MA: 'For MA use competitors: V, PYPL, AXP',
+    CRM: 'For CRM use competitors: MSFT, ORCL, SAP',
+    COIN: 'For COIN use competitors: HOOD, SQ, MSTR',
   }
   const competitorHint = competitorMap[ticker] || `Use 3 real direct competitors for ${ticker} with accurate tickers`
 
@@ -222,16 +225,16 @@ CRITICAL: Return ONLY valid JSON. NO formulas, NO expressions, ONLY real numeric
     "consensus": "Strong Buy"
   },
   "competitors": [
-    {"ticker":"REAL_TICKER_1","name":"Real Competitor 1 Full Name","price": 108.40,"marketCap":"$175B","pe":48.2,"signal":"hold","ytd":"-8.4%"},
-    {"ticker":"REAL_TICKER_2","name":"Real Competitor 2 Full Name","price": 21.30,"marketCap":"$91B","pe":null,"signal":"sell","ytd":"-42.1%"},
-    {"ticker":"REAL_TICKER_3","name":"Real Competitor 3 Full Name","price": 188.60,"marketCap":"$876B","pe":38.4,"signal":"buy","ytd":"+22.8%"}
+    {"ticker":"REAL_TICKER_1","name":"Real Competitor 1 Full Name","price":108.40,"marketCap":"$175B","pe":48.2,"signal":"hold","ytd":"-8.4%"},
+    {"ticker":"REAL_TICKER_2","name":"Real Competitor 2 Full Name","price":21.30,"marketCap":"$91B","pe":null,"signal":"sell","ytd":"-42.1%"},
+    {"ticker":"REAL_TICKER_3","name":"Real Competitor 3 Full Name","price":188.60,"marketCap":"$876B","pe":38.4,"signal":"buy","ytd":"+22.8%"}
   ]
 }
 
 COMPETITORS RULES:
 - ${competitorHint}
 - NEVER use COMP1, COMP2, COMP3 — always use real tickers
-- marketCap must be formatted as string like "$175B" or "$2.1T" — NEVER raw numbers like 175000000000
+- marketCap must be formatted as string like "$175B" or "$2.1T" — NEVER raw numbers
 - price must be approximate real market price
 - ytd must be realistic percentage
 
