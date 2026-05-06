@@ -9,6 +9,17 @@ const SENT: Record<string,{cls:string;en:string;ar:string}> = {
   neutral:{cls:'nb-neu',en:'Neutral',ar:'محايد'},
 }
 
+// ✅ تنسيق Market Cap
+function fmtCap(v: unknown): string {
+  if (typeof v === 'string' && v.includes('$')) return v
+  const n = typeof v === 'number' ? v : parseFloat(String(v))
+  if (isNaN(n) || n === 0) return '—'
+  if (n >= 1e12) return `$${(n/1e12).toFixed(2)}T`
+  if (n >= 1e9)  return `$${(n/1e9).toFixed(1)}B`
+  if (n >= 1e6)  return `$${(n/1e6).toFixed(1)}M`
+  return `$${n}`
+}
+
 function Row({k,v,sub,color}:{k:string;v:string;sub?:string;color?:string}) {
   return (
     <div className="irow">
@@ -37,7 +48,7 @@ export default function StockDetail({data,lang,onClose}:{data:StockData;lang:Lan
   const scol = score>=70?'#2EC98A':score>=50?'#E8A630':'#E85555'
   const circ = 2*Math.PI*36
   const off = circ-(score/100)*circ
-  const str = (v:unknown) => v!=null?String(v):'—'
+  const str = (v:unknown) => v!=null&&v!==''?String(v):'—'
 
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
@@ -51,7 +62,7 @@ export default function StockDetail({data,lang,onClose}:{data:StockData;lang:Lan
             <div className="dname">{data.companyName}</div>
             <div className="dtags">
               <span className="tag">{data.industry}</span>
-              <span className="tag">{data.marketCap}</span>
+              <span className="tag">{fmtCap(data.marketCap)}</span>
               <span className="tag">β {data.beta}</span>
             </div>
             <p className="ddesc">{data.description}</p>
@@ -220,11 +231,18 @@ export default function StockDetail({data,lang,onClose}:{data:StockData;lang:Lan
         {/* COMPETITORS */}
         <div className="dcard">
           <div className="clbl">⚖️ {T('Sector Comparison','مقارنة القطاع')}</div>
-          <div className="ctable-h"><span>{T('Ticker','الرمز')}</span><span>{T('Price','السعر')}</span><span>Mkt Cap</span><span>P/E</span><span>YTD</span><span>{T('Signal','الإشارة')}</span></div>
+          <div className="ctable-h">
+            <span>{T('Ticker','الرمز')}</span>
+            <span>{T('Price','السعر')}</span>
+            <span>Mkt Cap</span>
+            <span>P/E</span>
+            <span>YTD</span>
+            <span>{T('Signal','الإشارة')}</span>
+          </div>
           <div className="ctable-me">
             <span style={{color:'var(--gold)',fontFamily:'monospace',fontWeight:500}}>{data.ticker}</span>
             <span style={{fontFamily:'monospace',fontSize:12}}>${(+(data.price||0)).toFixed(2)}</span>
-            <span style={{fontFamily:'monospace',fontSize:12}}>{data.marketCap}</span>
+            <span style={{fontFamily:'monospace',fontSize:12}}>{fmtCap(data.marketCap)}</span>
             <span style={{fontFamily:'monospace',fontSize:12}}>{str(fm.pe)}</span>
             <span style={{fontFamily:'monospace',fontSize:12}}>—</span>
             <span style={{fontSize:11,color:cfg.color}}>{sigL(data.signal,lang)}</span>
@@ -237,7 +255,7 @@ export default function StockDetail({data,lang,onClose}:{data:StockData;lang:Lan
               <div key={str(c.ticker)} className="ctable-row">
                 <span style={{fontFamily:'monospace',fontSize:12,fontWeight:500}}>{str(c.ticker)}</span>
                 <span style={{fontFamily:'monospace',fontSize:12}}>${str(c.price)}</span>
-                <span style={{fontFamily:'monospace',fontSize:12}}>{str(c.marketCap)}</span>
+                <span style={{fontFamily:'monospace',fontSize:12}}>{fmtCap(c.marketCap)}</span>
                 <span style={{fontFamily:'monospace',fontSize:12}}>{str(c.pe)}</span>
                 <span style={{fontFamily:'monospace',fontSize:12,color:ytd.startsWith('+')?'#2EC98A':'#E85555'}}>{ytd}</span>
                 <span style={{fontSize:11,color:cs.color}}>{sigL(sig as keyof typeof SIG,lang)}</span>
