@@ -39,14 +39,15 @@ Return ONLY valid JSON matching this exact schema:
   "watchlist": ["AAPL","MSFT","AMZN"]
 }
 CRITICAL RULES:
-- Use CURRENT May 2026 prices: NVDA~$196, AAPL~$207, MSFT~$434, TSLA~$285, AMZN~$203, META~$580, GOOGL~$165, JPM~$260, AMAT~$175, AMD~$108
+- Every signal MUST have entry, stopLoss, target1, target2 — never use null or "-"
 - Entry must be within 2-3% of current price
-- StopLoss must be 3-6% below current price
-- Target1 must be 8-12% above current price
-- Target2 must be 15-20% above current price
+- StopLoss must be 3-6% below current price for buys, 3-6% above for sells
+- Target1 must be 8-12% from current price
+- Target2 must be 15-20% from current price
 - Include exactly 8 signals: 4-5 buy/strongBuy, 1-2 sell/strongSell, 1-2 hold
 - signal values: strongBuy | buy | hold | sell | strongSell
 - confidence: integer 60-95
+- timeframe: must always have a value like "1-2 weeks" or "2-3 weeks"
 ${prices}`
 }
 
