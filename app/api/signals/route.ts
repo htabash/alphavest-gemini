@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     const lang = req.nextUrl.searchParams.get('lang') || 'en'
     const now = Date.now()
 
-    // ✅ إذا الكاش صالح — حدّث الأسعار فقط دون استدعاء AI
+    // ✅ إذا الكاش صالح — حدّث الأسعار فقط
     if (cache && (now - cache.time) < CACHE_MS && cache.lang === lang) {
       const data = cache.data as Record<string, unknown>
       const signals = data.signals as Array<Record<string, unknown>>
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     // ✅ جلب أسعار كل الأسهم عبر market.ts مع Yahoo fallback
     const quotes = await getMultipleQuotes(UNIQUE_TICKERS)
 
-    // ✅ اختر أفضل 50 مرشح بناءً على momentum وحجم التداول
+    // ✅ اختر أفضل 50 مرشح بناءً على momentum
     const topTickers = selectTopCandidates(quotes, 50)
 
     // ✅ أرسل للـ AI السعر الحقيقي لكل سهم
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ✅ اختر أفضل المرشحين بناءً على momentum وحجم التداول
+// ✅ اختر أفضل المرشحين بناءً على momentum
 function selectTopCandidates(
   quotes: Record<string, { price: number; priceChange: number; priceChangePct: number }>,
   limit: number
@@ -105,14 +105,14 @@ function selectTopCandidates(
     .filter(([, q]) => q.price > 1)
     .map(([ticker, q]) => ({
       ticker,
-      score: Math.abs(q.priceChangePct) * 2 // أسهم لها حركة سعرية اليوم
+      score: Math.abs(q.priceChangePct) * 2
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map(x => x.ticker)
 }
 
-// ✅ تحقق من صحة الـ Setup — Entry vs Current Price
+// ✅ تحقق من صحة الـ Setup مع إصلاح parsing
 function validateSetup(
   signal: Record<string, unknown>,
   currentPrice: number
@@ -121,12 +121,15 @@ function validateSetup(
   const isBuy  = action?.includes('buy')
   const isSell = action?.includes('sell')
 
-  const entryStr  = (signal.entry as string) || ''
-  const entryNums = entryStr.replace(/\$/g, '').split('-').map(Number).filter(Boolean)
+  const entryStr = (signal.entry as string) || ''
+
+  // ✅ إصلاح: احذف $ وفراغات قبل parsing
+  const cleaned   = entryStr.replace(/\$|,|\s/g, '')
+  const entryNums = cleaned.split('-').map(Number).filter(n => !isNaN(n) && n > 0)
   const entryLow  = entryNums[0]
   const entryHigh = entryNums.length > 1 ? entryNums[1] : entryNums[0]
 
-  // BUY: إذا السعر تجاوز الـ entry بأكثر من 3%
+  // BUY: السعر تجاوز الـ entry بأكثر من 3%
   if (isBuy && entryHigh && currentPrice > entryHigh * 1.03) {
     return {
       ...signal,
@@ -135,7 +138,7 @@ function validateSetup(
     }
   }
 
-  // SELL: إذا السعر أقل من الـ entry بأكثر من 3%
+  // SELL: السعر أقل من الـ entry بأكثر من 3%
   if (isSell && entryLow && currentPrice < entryLow * 0.97) {
     return {
       ...signal,
