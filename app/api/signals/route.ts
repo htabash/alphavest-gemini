@@ -42,12 +42,8 @@ export async function GET(req: NextRequest) {
           ...data,
           signals: signals.map(s => {
             const q = quotes[s.ticker as string]
-            return q ? {
-              ...s,
-              price: q.price,
-              priceChange: q.priceChange,
-              priceChangePct: q.priceChangePct
-            } : s
+            if (!q) return s
+            return buildSignal(s, q.price, q.priceChange, q.priceChangePct)
           })
         }
         return NextResponse.json(updated)
@@ -69,13 +65,7 @@ export async function GET(req: NextRequest) {
       data.signals = (data.signals as Array<Record<string, unknown>>).map(s => {
         const q = quotes[s.ticker as string]
         if (!q) return s
-        const withPrice = {
-          ...s,
-          price: q.price,
-          priceChange: q.priceChange,
-          priceChangePct: q.priceChangePct
-        }
-        return validateSetup(withPrice, q.price)
+        return buildSignal(s, q.price, q.priceChange, q.priceChangePct)
       })
     }
 
@@ -88,6 +78,58 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// ✅ بناء الـ signal مع Entry/Stop/Target محسوبة من السعر الحقيقي دائماً
+function buildSignal(
+  s: Record<string, unknown>,
+  price: number,
+  priceChange: number,
+  priceChangePct: number
+): Record<string, unknown> {
+  const signal = (s.signal as string)?.toLowerCase()
+  const isSell = signal?.includes('sell')
+  const isHold = signal?.includes('hold')
+
+  const p = price
+
+  let entry: string
+  let stopLoss: string
+  let target1: string
+  let target2: string
+
+  if (isHold) {
+    // HOLD: entry حول السعر الحالي، targets أضيق
+    entry    = `$${Math.round(p * 0.98)}-${Math.round(p * 1.02)}`
+    stopLoss = `$${Math.round(p * 0.93)}`
+    target1  = `$${Math.round(p * 1.07)}`
+    target2  = `$${Math.round(p * 1.12)}`
+  } else if (isSell) {
+    // SELL: entry فوق السعر، target تحته
+    entry    = `$${Math.round(p * 1.01)}-${Math.round(p * 1.03)}`
+    stopLoss = `$${Math.round(p * 1.06)}`
+    target1  = `$${Math.round(p * 0.90)}`
+    target2  = `$${Math.round(p * 0.82)}`
+  } else {
+    // BUY / STRONG BUY: entry تحت السعر قليلاً
+    entry    = `$${Math.round(p * 0.97)}-${Math.round(p * 1.01)}`
+    stopLoss = `$${Math.round(p * 0.94)}`
+    target1  = `$${Math.round(p * 1.10)}`
+    target2  = `$${Math.round(p * 1.18)}`
+  }
+
+  return {
+    ...s,
+    price,
+    priceChange,
+    priceChangePct,
+    entry,
+    stopLoss,
+    target1,
+    target2,
+    setupValid: true,
+  }
+}
+
+// ✅ اختر أفضل المرشحين بناءً على momentum
 function selectTopCandidates(
   quotes: Record<string, { price: number; priceChange: number; priceChangePct: number }>,
   limit: number
@@ -101,48 +143,4 @@ function selectTopCandidates(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map(x => x.ticker)
-}
-
-function validateSetup(
-  signal: Record<string, unknown>,
-  currentPrice: number
-): Record<string, unknown> {
-  const action = (signal.signal as string)?.toLowerCase()
-  const isBuy  = action?.includes('buy')
-  const isSell = action?.includes('sell')
-
-  const entryStr  = (signal.entry as string) || ''
-  const cleaned   = entryStr.replace(/\$|,|\s/g, '')
-  const entryNums = cleaned.split('-').map(Number).filter(n => !isNaN(n) && n > 0)
-  const entryLow  = entryNums[0]
-  const entryHigh = entryNums.length > 1 ? entryNums[1] : entryNums[0]
-
-  // ✅ Entry بعيد أكثر من 10% عن السعر الحالي → بيانات خاطئة
-  if (entryHigh && Math.abs(currentPrice - entryHigh) / currentPrice > 0.10) {
-    return {
-      ...signal,
-      setupValid: false,
-      setupNote: 'Entry price seems incorrect — data may be stale'
-    }
-  }
-
-  // BUY: السعر تجاوز الـ entry بأكثر من 3%
-  if (isBuy && entryHigh && currentPrice > entryHigh * 1.03) {
-    return {
-      ...signal,
-      setupValid: false,
-      setupNote: 'Price above entry — consider waiting for pullback'
-    }
-  }
-
-  // SELL: السعر أقل من الـ entry بأكثر من 3%
-  if (isSell && entryLow && currentPrice < entryLow * 0.97) {
-    return {
-      ...signal,
-      setupValid: false,
-      setupNote: 'Price below entry — setup may be stale'
-    }
-  }
-
-  return { ...signal, setupValid: true }
 }
