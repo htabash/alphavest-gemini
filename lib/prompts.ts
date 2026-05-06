@@ -1,6 +1,15 @@
+// lib/prompts.ts
+
+function fmt(n: number): string {
+  return `$${Math.round(n)}`
+}
+
 export function signalsPrompt(lang: string, priceContext?: string) {
   const ar = lang === 'ar'
-  const prices = priceContext ? `\nCURRENT REAL PRICES (use these EXACTLY for entry/stop/target calculations): ${priceContext}` : ''
+  const prices = priceContext
+    ? `\nCURRENT REAL PRICES (use these EXACTLY for all calculations): ${priceContext}`
+    : ''
+
   return `You are a professional US stock market analyst for May 2026. Generate today's top 8 trading recommendations.
 ${ar ? 'ALL text fields must be in Arabic.' : 'All text in English.'}
 Return ONLY valid JSON matching this exact schema:
@@ -40,31 +49,55 @@ Return ONLY valid JSON matching this exact schema:
 }
 CRITICAL RULES:
 - VARIETY IS MANDATORY: Choose DIFFERENT stocks each time. Rotate from this full list: NVDA, AAPL, MSFT, TSLA, AMZN, META, GOOGL, JPM, AMAT, AMD, NFLX, CRM, UBER, COIN, PLTR, ARM, INTC, SHOP, SQ, PYPL, DIS, BA, GS, V, MA, WMT, HD, ORCL, ADBE, QCOM, MU, SMCI, DELL, HPE, PANW, CRWD, SNOW, DDOG, ZS
-- Do NOT always pick NVDA, AAPL, MSFT, TSLA — these should not appear every single day
-- Every signal MUST have entry, stopLoss, target1, target2 — never use null or "-"
-- Entry must be within 2-3% of current price
-- StopLoss must be 3-6% below current price for buys, 3-6% above for sells
-- Target1 must be 8-12% from current price
-- Target2 must be 15-20% from current price
+- Do NOT always pick NVDA, AAPL, MSFT, TSLA — rotate broadly
+- Every signal MUST have entry, stopLoss, target1, target2 — never null or "-"
+- ALL price fields must be REAL DOLLAR NUMBERS — NEVER formulas like "price*0.97"
+- entry format: "$193-198" — must be within 2-3% of current price
+- stopLoss: 3-6% below current for buys, 3-6% above for sells
+- target1: 8-12% from current price
+- target2: 15-20% from current price
 - Include exactly 8 signals: 4-5 buy/strongBuy, 1-2 sell/strongSell, 1-2 hold
 - signal values: strongBuy | buy | hold | sell | strongSell
 - confidence: integer 60-95
-- timeframe: must always have a value like "1-2 weeks" or "2-3 weeks"
+- timeframe: always a value like "1-2 weeks" or "2-3 weeks"
+- If signal is sell/strongSell: entry must be ABOVE current price (short entry), target BELOW current price
 ${prices}`
 }
 
 export function analyzePrompt(ticker: string, lang: string, price?: number) {
   const ar = lang === 'ar'
-  const priceHint = price ? `Current real market price: $${price}. Base ALL price levels on this.` : 'Use current May 2026 real market price.'
-  const entryLow = price ? Math.round(price * 0.97) : 'price*0.97'
-  const entryHigh = price ? Math.round(price * 1.01) : 'price*1.01'
-  const stopVal = price ? Math.round(price * 0.94) : 'price*0.94'
-  const t1Val = price ? Math.round(price * 1.10) : 'price*1.10'
-  const t2Val = price ? Math.round(price * 1.18) : 'price*1.18'
+
+  // ✅ تأكد أن price رقم حقيقي وليس 0
+  const p = price && price > 0 ? price : null
+  const priceHint = p
+    ? `Current real market price: $${p}. Base ALL price levels on this exact number.`
+    : `Use the real current May 2026 market price for ${ticker}.`
+
+  // ✅ احسب القيم مسبقاً — لا ترسل معادلات للـ AI أبداً
+  const entryLow  = p ? Math.round(p * 0.97)  : '[currentPrice * 0.97 as integer]'
+  const entryHigh = p ? Math.round(p * 1.01)  : '[currentPrice * 1.01 as integer]'
+  const stopVal   = p ? Math.round(p * 0.94)  : '[currentPrice * 0.94 as integer]'
+  const t1Val     = p ? Math.round(p * 1.10)  : '[currentPrice * 1.10 as integer]'
+  const t2Val     = p ? Math.round(p * 1.18)  : '[currentPrice * 1.18 as integer]'
+  const sma20     = p ? Math.round(p * 0.98)  : '[estimate]'
+  const sma50     = p ? Math.round(p * 0.95)  : '[estimate]'
+  const sma200    = p ? Math.round(p * 0.80)  : '[estimate]'
+  const bUpper    = p ? Math.round(p * 1.07)  : '[estimate]'
+  const bLower    = p ? Math.round(p * 0.93)  : '[estimate]'
+  const sup1      = p ? Math.round(p * 0.97)  : '[estimate]'
+  const sup2      = p ? Math.round(p * 0.94)  : '[estimate]'
+  const sup3      = p ? Math.round(p * 0.90)  : '[estimate]'
+  const res1      = p ? Math.round(p * 1.05)  : '[estimate]'
+  const res2      = p ? Math.round(p * 1.10)  : '[estimate]'
+  const w52High   = p ? Math.round(p * 1.25)  : '[estimate]'
+  const w52Low    = p ? Math.round(p * 0.60)  : '[estimate]'
+
   return `You are a professional financial analyst. Analyze US stock: ${ticker}
 ${ar ? 'ALL text fields must be in Arabic.' : 'All text in English.'}
 ${priceHint}
-Return ONLY valid JSON matching this schema exactly:
+
+CRITICAL: Return ONLY valid JSON. NO formulas, NO expressions, ONLY real numeric values.
+
 {
   "ticker": "${ticker}",
   "companyName": "Full legal company name",
@@ -72,17 +105,17 @@ Return ONLY valid JSON matching this schema exactly:
   "industry": "Semiconductors",
   "exchange": "NASDAQ",
   "description": "3-sentence description of business model and competitive position.",
-  "price": ${price || 196.50},
+  "price": ${p || 0},
   "priceChange": -1.90,
   "priceChangePct": -0.96,
-  "open": ${price || 197.20},
-  "high": ${price ? Math.round(price * 1.02) : 200.24},
-  "low": ${price ? Math.round(price * 0.98) : 196.03},
+  "open": ${p || 0},
+  "high": ${p ? Math.round(p * 1.02) : 0},
+  "low": ${p ? Math.round(p * 0.98) : 0},
   "volume": "109.9M",
   "avgVolume": "245.0M",
-  "week52High": ${price ? Math.round(price * 1.25) : 216.83},
-  "week52Low": ${price ? Math.round(price * 0.60) : 110.82},
-  "marketCap": "$478B",
+  "week52High": ${w52High},
+  "week52Low": ${w52Low},
+  "marketCap": "use real market cap",
   "beta": 1.68,
   "signal": "buy",
   "confidence": 82,
@@ -94,33 +127,41 @@ Return ONLY valid JSON matching this schema exactly:
   "score": 78,
   "scoreBreakdown": { "fundamental": 75, "technical": 82, "sentiment": 78, "momentum": 80 },
   "fundamentals": {
-    "revenue": "real revenue", "revenueGrowth": "real growth%", "netIncome": "real net income",
-    "netMargin": "real margin%", "eps": "real EPS", "epsGrowth": "real EPS growth%",
-    "pe": 36.2, "forwardPE": 28.4, "peg": 0.37,
-    "ebitda": "real EBITDA", "freeCashFlow": "real FCF",
-    "debtEquity": 0.42, "currentRatio": 4.17,
-    "roe": "real ROE%", "roa": "real ROA%", "dividendYield": "real yield%"
+    "revenue": "real revenue figure",
+    "revenueGrowth": "real YoY growth%",
+    "netIncome": "real net income",
+    "netMargin": "real margin%",
+    "eps": "real EPS",
+    "epsGrowth": "real EPS growth%",
+    "pe": 36.2,
+    "forwardPE": 28.4,
+    "peg": 0.37,
+    "ebitda": "real EBITDA",
+    "freeCashFlow": "real FCF",
+    "debtEquity": 0.42,
+    "currentRatio": 4.17,
+    "roe": "real ROE%",
+    "roa": "real ROA%",
+    "dividendYield": "real yield% or N/A"
   },
   "technical": {
-    "trend": "Uptrend", "rsi": 52.4, "rsiSignal": "Neutral",
-    "macd": "Bullish", "macdValue": 2.8,
-    "sma20": ${price ? Math.round(price * 0.98) : 192},
-    "sma50": ${price ? Math.round(price * 0.95) : 185},
-    "sma200": ${price ? Math.round(price * 0.80) : 155},
-    "bollingerUpper": ${price ? Math.round(price * 1.07) : 210},
-    "bollingerLower": ${price ? Math.round(price * 0.93) : 180},
-    "support1": ${price ? Math.round(price * 0.97) : 190},
-    "support2": ${price ? Math.round(price * 0.94) : 185},
-    "support3": ${price ? Math.round(price * 0.90) : 175},
-    "resistance1": ${price ? Math.round(price * 1.05) : 205},
-    "resistance2": ${price ? Math.round(price * 1.10) : 216},
-    "atr": 5.4, "obv": "Rising"
-  },
-  "historicalPrices": {
-    "1M": [${price ? Array.from({length:20},(_,i)=>Math.round(price*(0.90+i*0.005))).join(',') : '183,185,182,187,186,190,192,189,194,193,196,194,191,195,197,199,198,196,197,196'}],
-    "3M": [${price ? Array.from({length:20},(_,i)=>Math.round(price*(0.80+i*0.01))).join(',') : '155,158,154,162,160,165,170,168,175,173,180,178,185,183,190,194,196,198,197,196'}],
-    "6M": [${price ? Array.from({length:20},(_,i)=>Math.round(price*(0.65+i*0.018))).join(',') : '125,128,124,132,130,138,145,143,152,150,160,158,168,165,175,183,190,195,197,196'}],
-    "1Y": [${price ? Array.from({length:20},(_,i)=>Math.round(price*(0.55+i*0.023))).join(',') : '110,113,111,118,116,122,130,128,138,136,148,145,158,155,168,178,188,194,197,196'}]
+    "trend": "Uptrend",
+    "rsi": 52.4,
+    "rsiSignal": "Neutral",
+    "macd": "Bullish",
+    "macdValue": 2.8,
+    "sma20": ${sma20},
+    "sma50": ${sma50},
+    "sma200": ${sma200},
+    "bollingerUpper": ${bUpper},
+    "bollingerLower": ${bLower},
+    "support1": ${sup1},
+    "support2": ${sup2},
+    "support3": ${sup3},
+    "resistance1": ${res1},
+    "resistance2": ${res2},
+    "atr": 5.4,
+    "obv": "Rising"
   },
   "analysis": {
     "summary": "4-5 sentence investment thesis specific to ${ticker} with current May 2026 catalysts.",
@@ -136,7 +177,9 @@ Return ONLY valid JSON matching this schema exactly:
   ],
   "analystRatings": {
     "buy": 28, "hold": 8, "sell": 2,
-    "avgTarget": "$${t1Val}", "highTarget": "$${t2Val}", "lowTarget": "$${stopVal}",
+    "avgTarget": "$${t1Val}",
+    "highTarget": "$${t2Val}",
+    "lowTarget": "$${stopVal}",
     "consensus": "Strong Buy"
   },
   "competitors": [
@@ -145,9 +188,11 @@ Return ONLY valid JSON matching this schema exactly:
     {"ticker":"COMP3","name":"Competitor 3","price":188.60,"marketCap":"$876B","pe":38.4,"signal":"buy","ytd":"+22.8%"}
   ]
 }
-CRITICAL:
-- signal: strongBuy | buy | hold | sell | strongSell
+
+FINAL RULES:
+- signal: strongBuy | buy | hold | sell | strongSell only
 - score & confidence: integers 0-100
-- historicalPrices: exactly 20 numbers each, ending near current price $${price || 'current'}
-- Use REAL accurate fundamental data for ${ticker}`
+- ALL numeric fields: real numbers only, zero formulas or expressions
+- Use REAL accurate fundamental data for ${ticker}
+- historicalPrices not included — provided separately from market data API`
 }
