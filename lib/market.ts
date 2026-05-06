@@ -1,5 +1,3 @@
-// lib/market.ts
-
 export interface QuoteData {
   ticker: string; price: number; priceChange: number; priceChangePct: number
   open: number; high: number; low: number; volume: string; avgVolume: string
@@ -30,6 +28,7 @@ function getDateRange(days: number): { from: string; to: string } {
   }
 }
 
+// ✅ Polygon history
 async function fetchHistory(
   ticker: string,
   days: number,
@@ -56,6 +55,31 @@ async function fetchHistory(
   } catch { return [] }
 }
 
+// ✅ Yahoo Finance history — fallback
+async function fetchHistoryYahoo(ticker: string, range: string): Promise<number[]> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=${range}`
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      next: { revalidate: 3600 }
+    })
+    if (!res.ok) return []
+    const json = await res.json()
+    const closes = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close as number[]
+    if (!closes?.length) return []
+    const filtered = closes.filter((c: number) => c != null && !isNaN(c))
+    if (filtered.length === 0) return []
+    if (filtered.length <= 20) return filtered.map((c: number) => +c.toFixed(2))
+    const step = Math.floor(filtered.length / 20)
+    const sampled = Array.from({ length: 20 }, (_, i) =>
+      +filtered[Math.min(i * step, filtered.length - 1)].toFixed(2)
+    )
+    sampled[19] = +filtered[filtered.length - 1].toFixed(2)
+    return sampled
+  } catch { return [] }
+}
+
+// ✅ Yahoo Quote — fallback للسعر
 async function getQuoteYahoo(ticker: string): Promise<QuoteData | null> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
@@ -73,12 +97,19 @@ async function getQuoteYahoo(ticker: string): Promise<QuoteData | null> {
 
     const price = +(meta.regularMarketPrice || 0)
     console.log(`[${ticker}] Yahoo price: ${price}`)
-
     if (price <= 0) return null
 
     const prev      = +(meta.chartPreviousClose || price)
     const change    = +(price - prev).toFixed(2)
     const changePct = prev > 0 ? +((change / prev) * 100).toFixed(2) : 0
+
+    // ✅ جلب history من Yahoo أيضاً
+    const [h1M, h3M, h6M, h1Y] = await Promise.all([
+      fetchHistoryYahoo(ticker, '1mo'),
+      fetchHistoryYahoo(ticker, '3mo'),
+      fetchHistoryYahoo(ticker, '6mo'),
+      fetchHistoryYahoo(ticker, '1y'),
+    ])
 
     return {
       ticker,
@@ -88,13 +119,16 @@ async function getQuoteYahoo(ticker: string): Promise<QuoteData | null> {
       open:  +(meta.regularMarketOpen    || price),
       high:  +(meta.regularMarketDayHigh || price),
       low:   +(meta.regularMarketDayLow  || price),
-      volume:    meta.regularMarketVolume          ? fVol(meta.regularMarketVolume)          : '—',
-      avgVolume: meta.averageDailyVolume3Month     ? fVol(meta.averageDailyVolume3Month)     : '—',
+      volume:    meta.regularMarketVolume          ? fVol(meta.regularMarketVolume)      : '—',
+      avgVolume: meta.averageDailyVolume3Month     ? fVol(meta.averageDailyVolume3Month) : '—',
       week52High: +(meta.fiftyTwoWeekHigh || 0),
       week52Low:  +(meta.fiftyTwoWeekLow  || 0),
       marketCap: meta.marketCap ? fMcap(meta.marketCap) : '—',
       pe: null, eps: null, beta: null,
-      history1M: [], history3M: [], history6M: [], history1Y: []
+      history1M: h1M,
+      history3M: h3M,
+      history6M: h6M,
+      history1Y: h1Y,
     }
   } catch (e) {
     console.log(`[${ticker}] Yahoo exception:`, e)
@@ -128,12 +162,10 @@ export async function getQuote(ticker: string): Promise<QuoteData | null> {
     const prevDay = snap.prevDay || {}
 
     const price = +(day.c || prevDay.c || snap.lastTrade?.p || snap.min?.c || 0)
-
-    // ✅ Log لتشخيص المشاكل
-    console.log(`[${ticker}] Polygon price: ${price}, day.c: ${day.c}, prevDay.c: ${prevDay.c}, lastTrade: ${snap.lastTrade?.p}, valid: ${isPriceValid(price)}`)
+    console.log(`[${ticker}] Polygon price: ${price}, valid: ${isPriceValid(price)}`)
 
     if (!isPriceValid(price)) {
-      console.log(`[${ticker}] Invalid price ${price}, falling back to Yahoo...`)
+      console.log(`[${ticker}] Invalid price, trying Yahoo...`)
       return await getQuoteYahoo(ticker)
     }
 
@@ -144,11 +176,12 @@ export async function getQuote(ticker: string): Promise<QuoteData | null> {
     const week52High = +(snap.ticker?.day?.h || prevDay.h || 0)
     const week52Low  = +(snap.ticker?.day?.l || prevDay.l || 0)
 
+    // ✅ Polygon أولاً، Yahoo كـ fallback للـ history
     const [h1M, h3M, h6M, h1Y] = await Promise.all([
-      fetchHistory(ticker, 30,  1, 'day'),
-      fetchHistory(ticker, 90,  1, 'day'),
-      fetchHistory(ticker, 180, 1, 'week'),
-      fetchHistory(ticker, 365, 1, 'month'),
+      fetchHistory(ticker, 30,  1, 'day').then(r   => r.length   ? r : fetchHistoryYahoo(ticker, '1mo')),
+      fetchHistory(ticker, 90,  1, 'day').then(r   => r.length   ? r : fetchHistoryYahoo(ticker, '3mo')),
+      fetchHistory(ticker, 180, 1, 'week').then(r  => r.length   ? r : fetchHistoryYahoo(ticker, '6mo')),
+      fetchHistory(ticker, 365, 1, 'month').then(r => r.length   ? r : fetchHistoryYahoo(ticker, '1y')),
     ])
 
     return {
