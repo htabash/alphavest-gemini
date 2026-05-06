@@ -63,15 +63,20 @@ async function getQuoteYahoo(ticker: string): Promise<QuoteData | null> {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       next: { revalidate: 60 }
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.log(`[${ticker}] Yahoo failed: ${res.status}`)
+      return null
+    }
     const json = await res.json()
     const meta = json?.chart?.result?.[0]?.meta
     if (!meta) return null
 
     const price = +(meta.regularMarketPrice || 0)
+    console.log(`[${ticker}] Yahoo price: ${price}`)
+
     if (price <= 0) return null
 
-    const prev  = +(meta.chartPreviousClose || price)
+    const prev      = +(meta.chartPreviousClose || price)
     const change    = +(price - prev).toFixed(2)
     const changePct = prev > 0 ? +((change / prev) * 100).toFixed(2) : 0
 
@@ -83,19 +88,20 @@ async function getQuoteYahoo(ticker: string): Promise<QuoteData | null> {
       open:  +(meta.regularMarketOpen    || price),
       high:  +(meta.regularMarketDayHigh || price),
       low:   +(meta.regularMarketDayLow  || price),
-      volume:    meta.regularMarketVolume ? fVol(meta.regularMarketVolume) : '—',
-      avgVolume: meta.averageDailyVolume3Month
-        ? fVol(meta.averageDailyVolume3Month) : '—',
+      volume:    meta.regularMarketVolume          ? fVol(meta.regularMarketVolume)          : '—',
+      avgVolume: meta.averageDailyVolume3Month     ? fVol(meta.averageDailyVolume3Month)     : '—',
       week52High: +(meta.fiftyTwoWeekHigh || 0),
       week52Low:  +(meta.fiftyTwoWeekLow  || 0),
       marketCap: meta.marketCap ? fMcap(meta.marketCap) : '—',
       pe: null, eps: null, beta: null,
       history1M: [], history3M: [], history6M: [], history1Y: []
     }
-  } catch { return null }
+  } catch (e) {
+    console.log(`[${ticker}] Yahoo exception:`, e)
+    return null
+  }
 }
 
-// ✅ التحقق من أن السعر منطقي
 function isPriceValid(price: number): boolean {
   return price > 0.5 && price < 100000
 }
@@ -106,27 +112,35 @@ export async function getQuote(ticker: string): Promise<QuoteData | null> {
     const url = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${ticker}?apiKey=${key}`
     const res = await fetch(url, { next: { revalidate: 60 } })
 
-    if (!res.ok) return await getQuoteYahoo(ticker)
+    if (!res.ok) {
+      console.log(`[${ticker}] Polygon failed: ${res.status}, trying Yahoo...`)
+      return await getQuoteYahoo(ticker)
+    }
 
     const json = await res.json()
     const snap = json?.ticker
-    if (!snap) return await getQuoteYahoo(ticker)
+    if (!snap) {
+      console.log(`[${ticker}] Polygon no snap, trying Yahoo...`)
+      return await getQuoteYahoo(ticker)
+    }
 
     const day     = snap.day     || {}
     const prevDay = snap.prevDay || {}
 
-    // ✅ الإصلاح الرئيسي: أولوية لـ day.c (closing) وليس lastTrade
-    // lastTrade خارج ساعات السوق قد يكون صفقة صغيرة غير ممثلة للسعر
     const price = +(day.c || prevDay.c || snap.lastTrade?.p || snap.min?.c || 0)
 
-    // ✅ إذا السعر غير منطقي → fallback لـ Yahoo
-    if (!isPriceValid(price)) return await getQuoteYahoo(ticker)
+    // ✅ Log لتشخيص المشاكل
+    console.log(`[${ticker}] Polygon price: ${price}, day.c: ${day.c}, prevDay.c: ${prevDay.c}, lastTrade: ${snap.lastTrade?.p}, valid: ${isPriceValid(price)}`)
+
+    if (!isPriceValid(price)) {
+      console.log(`[${ticker}] Invalid price ${price}, falling back to Yahoo...`)
+      return await getQuoteYahoo(ticker)
+    }
 
     const prevClose = +(prevDay.c || price)
     const change    = +(price - prevClose).toFixed(2)
     const changePct = prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : 0
 
-    // ✅ week52 من فترة سنة كاملة
     const week52High = +(snap.ticker?.day?.h || prevDay.h || 0)
     const week52Low  = +(snap.ticker?.day?.l || prevDay.l || 0)
 
@@ -145,8 +159,8 @@ export async function getQuote(ticker: string): Promise<QuoteData | null> {
       open:  +(day.o || price),
       high:  +(day.h || price),
       low:   +(day.l || price),
-      volume:    day.v    ? fVol(day.v)    : '—',
-      avgVolume: prevDay.v ? fVol(prevDay.v) : '—', // ✅ إصلاح avgVolume
+      volume:    day.v     ? fVol(day.v)     : '—',
+      avgVolume: prevDay.v ? fVol(prevDay.v) : '—',
       week52High,
       week52Low,
       marketCap: snap.ticker?.marketCap ? fMcap(snap.ticker.marketCap) : '—',
@@ -159,7 +173,7 @@ export async function getQuote(ticker: string): Promise<QuoteData | null> {
       history1Y: h1Y,
     }
   } catch (e) {
-    console.error(`Quote error for ${ticker}:`, e)
+    console.error(`[${ticker}] Quote exception:`, e)
     return await getQuoteYahoo(ticker)
   }
 }
