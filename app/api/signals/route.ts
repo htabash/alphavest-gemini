@@ -26,14 +26,14 @@ const TICKERS = [
 const UNIQUE_TICKERS = [...new Set(TICKERS)]
 
 let cache: { data: unknown; time: number; lang: string } | null = null
-const CACHE_MS = 15 * 60 * 1000 // ✅ 15 دقيقة
+const CACHE_MS = 15 * 60 * 1000 // 15 دقيقة
 
 export async function GET(req: NextRequest) {
   try {
     const lang = req.nextUrl.searchParams.get('lang') || 'en'
     const now = Date.now()
 
-    // ✅ إذا الكاش صالح — حدّث الأسعار فقط
+    // إذا الكاش صالح — حدّث الأسعار فقط
     if (cache && (now - cache.time) < CACHE_MS && cache.lang === lang) {
       const data = cache.data as Record<string, unknown>
       const signals = data.signals as Array<Record<string, unknown>>
@@ -57,13 +57,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data)
     }
 
-    // ✅ جلب أسعار كل الأسهم عبر market.ts مع Yahoo fallback
+    // جلب أسعار كل الأسهم عبر market.ts مع Yahoo fallback
     const quotes = await getMultipleQuotes(UNIQUE_TICKERS)
 
-    // ✅ اختر أفضل 50 مرشح بناءً على momentum
+    // اختر أفضل 50 مرشح بناءً على momentum
     const topTickers = selectTopCandidates(quotes, 50)
 
-    // ✅ أرسل للـ AI السعر الحقيقي لكل سهم
+    // أرسل للـ AI السعر الحقيقي لكل سهم
     const priceContext = topTickers
       .filter(t => quotes[t])
       .map(t => `${t}=$${quotes[t].price}`)
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
     const aiData = await generateJSON(signalsPrompt(lang, priceContext))
     const data = aiData as Record<string, unknown>
 
-    // ✅ Override بالأسعار الحقيقية + validate setup
+    // Override بالأسعار الحقيقية + validate setup
     if (data?.signals && Array.isArray(data.signals)) {
       data.signals = (data.signals as Array<Record<string, unknown>>).map(s => {
         const q = quotes[s.ticker as string]
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ✅ اختر أفضل المرشحين بناءً على momentum
+// اختر أفضل المرشحين بناءً على momentum
 function selectTopCandidates(
   quotes: Record<string, { price: number; priceChange: number; priceChangePct: number }>,
   limit: number
@@ -112,7 +112,7 @@ function selectTopCandidates(
     .map(x => x.ticker)
 }
 
-// ✅ تحقق من صحة الـ Setup مع إصلاح parsing
+// ✅ تحقق من صحة الـ Setup — نسخة محسّنة
 function validateSetup(
   signal: Record<string, unknown>,
   currentPrice: number
@@ -123,11 +123,20 @@ function validateSetup(
 
   const entryStr = (signal.entry as string) || ''
 
-  // ✅ إصلاح: احذف $ وفراغات قبل parsing
+  // احذف $ وفراغات وفواصل قبل parsing
   const cleaned   = entryStr.replace(/\$|,|\s/g, '')
   const entryNums = cleaned.split('-').map(Number).filter(n => !isNaN(n) && n > 0)
   const entryLow  = entryNums[0]
   const entryHigh = entryNums.length > 1 ? entryNums[1] : entryNums[0]
+
+  // ✅ إذا الـ entry بعيد جداً عن السعر الحالي (أكثر من 20%) → بيانات خاطئة
+  if (entryHigh && Math.abs(currentPrice - entryHigh) / currentPrice > 0.20) {
+    return {
+      ...signal,
+      setupValid: false,
+      setupNote: 'Entry price seems incorrect — data may be stale'
+    }
+  }
 
   // BUY: السعر تجاوز الـ entry بأكثر من 3%
   if (isBuy && entryHigh && currentPrice > entryHigh * 1.03) {
@@ -149,3 +158,4 @@ function validateSetup(
 
   return { ...signal, setupValid: true }
 }
+
