@@ -1,5 +1,3 @@
-// lib/prompts.ts
-
 function fmt(n: number): string {
   return `$${Math.round(n)}`
 }
@@ -52,6 +50,10 @@ CRITICAL RULES:
 - Do NOT always pick NVDA, AAPL, MSFT, TSLA — rotate broadly
 - Every signal MUST have entry, stopLoss, target1, target2 — never null or "-"
 - ALL price fields must be REAL DOLLAR NUMBERS — NEVER formulas like "price*0.97"
+- CRITICAL: Entry MUST be within 5% of the current price provided
+- If AAPL=$286, entry MUST be between $272-$300, NOT $194 or any other distant value
+- If TSLA=$398, entry MUST be between $378-$418, NOT any other range
+- Double-check EVERY entry against the current price before returning
 - entry format: "$193-198" — must be within 2-3% of current price
 - stopLoss: 3-6% below current for buys, 3-6% above for sells
 - target1: 8-12% from current price
@@ -60,20 +62,18 @@ CRITICAL RULES:
 - signal values: strongBuy | buy | hold | sell | strongSell
 - confidence: integer 60-95
 - timeframe: always a value like "1-2 weeks" or "2-3 weeks"
-- If signal is sell/strongSell: entry must be ABOVE current price (short entry), target BELOW current price
+- If signal is sell/strongSell: entry must be ABOVE current price, target BELOW current price
+- NEVER return formulas — ALL values must be computed real numbers
 ${prices}`
 }
 
 export function analyzePrompt(ticker: string, lang: string, price?: number) {
   const ar = lang === 'ar'
-
-  // ✅ تأكد أن price رقم حقيقي وليس 0
   const p = price && price > 0 ? price : null
   const priceHint = p
     ? `Current real market price: $${p}. Base ALL price levels on this exact number.`
     : `Use the real current May 2026 market price for ${ticker}.`
 
-  // ✅ احسب القيم مسبقاً — لا ترسل معادلات للـ AI أبداً
   const entryLow  = p ? Math.round(p * 0.97)  : '[currentPrice * 0.97 as integer]'
   const entryHigh = p ? Math.round(p * 1.01)  : '[currentPrice * 1.01 as integer]'
   const stopVal   = p ? Math.round(p * 0.94)  : '[currentPrice * 0.94 as integer]'
