@@ -12,16 +12,32 @@ const TX = {
 
 const QUICK = ['NVDA','AAPL','MSFT','TSLA','AMZN','META','GOOGL','JPM','AMAT','AMD','NFLX','INTC']
 
-// ✅ تعريف القطاعات
 const SECTORS = [
-  { key: 'all',        en: 'All',         ar: 'الكل' },
-  { key: 'Technology', en: 'Tech',        ar: 'تقنية' },
-  { key: 'Financials', en: 'Finance',     ar: 'مالية' },
-  { key: 'Energy',     en: 'Energy',      ar: 'طاقة' },
-  { key: 'Healthcare', en: 'Healthcare',  ar: 'صحة' },
-  { key: 'Consumer',   en: 'Consumer',    ar: 'استهلاك' },
-  { key: 'Industrials',en: 'Industrial',  ar: 'صناعة' },
+  { key: 'all',         en: 'All',        ar: 'الكل' },
+  { key: 'Technology',  en: 'Tech',       ar: 'تقنية' },
+  { key: 'Financials',  en: 'Finance',    ar: 'مالية' },
+  { key: 'Energy',      en: 'Energy',     ar: 'طاقة' },
+  { key: 'Healthcare',  en: 'Healthcare', ar: 'صحة' },
+  { key: 'Consumer',    en: 'Consumer',   ar: 'استهلاك' },
+  { key: 'Industrials', en: 'Industrial', ar: 'صناعة' },
 ]
+
+// ✅ خريطة الكلمات المفتاحية لكل قطاع
+const SECTOR_KEYWORDS: Record<string, string[]> = {
+  'Technology':  ['tech', 'software', 'semiconductor', 'it ', 'internet', 'cloud', 'ai', 'data', 'cyber', 'saas'],
+  'Financials':  ['financ', 'bank', 'insurance', 'invest', 'capital', 'asset', 'payment', 'exchange'],
+  'Energy':      ['energy', 'oil', 'gas', 'petroleum', 'power', 'utilities', 'renewab'],
+  'Healthcare':  ['health', 'pharma', 'biotech', 'medical', 'drug', 'life science', 'hospital'],
+  'Consumer':    ['consumer', 'retail', 'food', 'beverage', 'discretionary', 'staples', 'apparel', 'restaurant'],
+  'Industrials': ['industri', 'aerospace', 'defense', 'transport', 'manufactur', 'logistic', 'machinery'],
+}
+
+function matchSector(signalSector: string, filterKey: string): boolean {
+  if (filterKey === 'all') return true
+  const keywords = SECTOR_KEYWORDS[filterKey] || [filterKey.toLowerCase()]
+  const s = signalSector?.toLowerCase() || ''
+  return keywords.some(kw => s.includes(kw))
+}
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>('en')
@@ -31,7 +47,7 @@ export default function Home() {
   const [search, setSearch] = useState('')
   const [loadStock, setLoadStock] = useState(false)
   const [stock, setStock] = useState<StockData|null>(null)
-  const [sector, setSector] = useState('all') // ✅ فلتر القطاع
+  const [sector, setSector] = useState('all')
   const tx = TX[lang]
 
   const fetchSignals = useCallback(async () => {
@@ -61,11 +77,14 @@ export default function Home() {
     s==='Bullish'||s==='صعودي' ? '#2EC98A' :
     s==='Bearish'||s==='هبوطي' ? '#E85555' : '#E8A630'
 
-  // ✅ فلترة الـ signals بناءً على القطاع المختار
-  const filteredSignals = (signals?.signals || []).filter((s: TradeSignal) => {
-    if (sector === 'all') return true
-    return s.sector?.toLowerCase().includes(sector.toLowerCase())
-  })
+  // ✅ فلترة محسّنة
+  const filteredSignals = (signals?.signals || []).filter((s: TradeSignal) =>
+    matchSector(s.sector, sector)
+  )
+
+  // ✅ عداد محسّن لكل قطاع
+  const sectorCount = (key: string) =>
+    (signals?.signals || []).filter((s: TradeSignal) => matchSector(s.sector, key)).length
 
   return (
     <div className="app" dir={lang==='ar'?'rtl':'ltr'}>
@@ -111,25 +130,24 @@ export default function Home() {
               </div>
             )}
 
-            {/* ✅ فلتر القطاعات */}
+            {/* ✅ فلتر القطاعات مع عداد محسّن */}
             {signals&&(
               <div className="sector-filter">
-                {SECTORS.map(s => (
-                  <button
-                    key={s.key}
-                    className={`sfb ${sector === s.key ? 'on' : ''}`}
-                    onClick={() => setSector(s.key)}
-                  >
-                    {lang === 'ar' ? s.ar : s.en}
-                    {s.key !== 'all' && (
-                      <span className="sfc">
-                        {(signals.signals || []).filter((sig: TradeSignal) =>
-                          sig.sector?.toLowerCase().includes(s.key.toLowerCase())
-                        ).length}
-                      </span>
-                    )}
-                  </button>
-                ))}
+                {SECTORS.map(s => {
+                  const count = s.key === 'all'
+                    ? (signals.signals || []).length
+                    : sectorCount(s.key)
+                  return (
+                    <button
+                      key={s.key}
+                      className={`sfb ${sector === s.key ? 'on' : ''}`}
+                      onClick={() => setSector(s.key)}
+                    >
+                      {lang === 'ar' ? s.ar : s.en}
+                      <span className="sfc">{count}</span>
+                    </button>
+                  )
+                })}
               </div>
             )}
 
