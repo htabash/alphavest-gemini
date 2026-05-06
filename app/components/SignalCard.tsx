@@ -6,8 +6,8 @@ export default function SignalCard({ s, lang, onClick }: { s: TradeSignal; lang:
   const cfg = SIG[s.signal]
   const up = s.priceChangePct >= 0
   const Icon = s.signal.includes('uy') ? TrendingUp : s.signal.includes('ell') ? TrendingDown : Minus
-  const invalid = (s as Record<string, unknown>).setupValid === false
-  const setupNote = (s as Record<string, unknown>).setupNote as string | undefined
+  const invalid = s.setupValid === false
+  const setupNote = s.setupNote
 
   return (
     <div className="sc" onClick={onClick} style={invalid ? { opacity: 0.85 } : {}}>
@@ -30,9 +30,9 @@ export default function SignalCard({ s, lang, onClick }: { s: TradeSignal; lang:
 
       <div className="sc-levels">
         {[
-          [lang==='ar'?'دخول':'Entry',   s.entry,    ''        ],
-          [lang==='ar'?'وقف':'Stop',     s.stopLoss, '#E85555' ],
-          [lang==='ar'?'هدف':'Target',   s.target1,  '#2EC98A' ]
+          [lang==='ar'?'دخول':'Entry',  s.entry,    ''        ],
+          [lang==='ar'?'وقف':'Stop',    s.stopLoss, '#E85555' ],
+          [lang==='ar'?'هدف':'Target',  s.target1,  '#2EC98A' ]
         ].map(([k,v,c])=>(
           <div key={k} className="sc-lv">
             <span className="sc-lv-k">{k}</span>
@@ -56,7 +56,7 @@ export default function SignalCard({ s, lang, onClick }: { s: TradeSignal; lang:
           color: '#FFAA00'
         }}>
           <AlertTriangle size={12} style={{flexShrink:0}}/>
-          <span>{setupNote}</span>
+          <span>{lang==='ar' ? 'السعر تجاوز نطاق الدخول — انتظر تراجعاً' : setupNote}</span>
         </div>
       )}
 
