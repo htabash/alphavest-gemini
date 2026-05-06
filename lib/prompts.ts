@@ -4,7 +4,7 @@ export function signalsPrompt(lang: string, priceContext?: string) {
     ? `\nCURRENT REAL PRICES (use these EXACTLY for all calculations): ${priceContext}`
     : ''
 
-  return `You are a professional US stock market analyst for May 2026. Generate today's top 8 trading recommendations.
+  return `You are a professional US stock market analyst for May 2026. Generate today's top 16 trading recommendations across all major sectors.
 ${ar ? 'ALL text fields must be in Arabic.' : 'All text in English.'}
 Return ONLY valid JSON matching this exact schema:
 {
@@ -39,11 +39,24 @@ Return ONLY valid JSON matching this exact schema:
   ],
   "topBuy": "BEST_BUY_TICKER",
   "topSell": "BEST_SELL_TICKER",
-  "watchlist": ["TICKER1","TICKER2","TICKER3"]
+  "watchlist": ["TICKER1","TICKER2","TICKER3","TICKER4","TICKER5"]
 }
+
+SECTOR DISTRIBUTION — MANDATORY 16 signals:
+- Technology (4 signals): NVDA, AAPL, MSFT, GOOGL, META, AMD, AMAT, INTC, PLTR, ARM, CRM, ORCL, ADBE, CRWD, PANW, SNOW, DDOG, NET, ZS, QCOM, MU
+- Financials (2 signals): JPM, GS, MS, V, MA, BAC, WFC, PYPL, SQ, COIN, BLK, AXP, C, COF, SCHW
+- Energy (2 signals): XOM, CVX, COP, SLB, EOG, MPC, PSX, VLO, OXY
+- Healthcare (2 signals): LLY, UNH, JNJ, ABBV, MRK, PFE, TMO, AMGN, GILD, ISRG, VRTX, REGN
+- Consumer Discretionary (2 signals): TSLA, AMZN, HD, LOW, MCD, SBUX, NKE, COST, TGT, DIS, NFLX
+- Industrials (2 signals): BA, CAT, DE, GE, HON, UPS, FDX, RTX, LMT
+- Other/Mixed (2 signals): WMT, PG, KO, PEP, ABT, UBER, SHOP, ABNB, DASH
+
+SIGNAL MIX per sector: each sector must have at least 1 buy/strongBuy
+TOTAL MIX across all 16: 8-10 buy/strongBuy, 3-4 sell/strongSell, 2-3 hold
+
 CRITICAL RULES:
-- VARIETY IS MANDATORY: Choose DIFFERENT stocks each time. Rotate from this full list: NVDA, AAPL, MSFT, TSLA, AMZN, META, GOOGL, JPM, AMAT, AMD, NFLX, CRM, UBER, COIN, PLTR, ARM, INTC, SHOP, SQ, PYPL, DIS, BA, GS, V, MA, WMT, HD, ORCL, ADBE, QCOM, MU, SMCI, DELL, HPE, PANW, CRWD, SNOW, DDOG, ZS
-- Do NOT always pick NVDA, AAPL, MSFT, TSLA — rotate broadly
+- VARIETY IS MANDATORY: Choose DIFFERENT stocks each time — rotate broadly
+- Do NOT repeat same tickers across consecutive days
 - Every signal MUST have entry, stopLoss, target1, target2 — never null or "-"
 - ALL price fields must be REAL DOLLAR NUMBERS — NEVER formulas like "price*0.97"
 - CRITICAL: Entry MUST be within 5% of the current price provided
@@ -52,11 +65,10 @@ CRITICAL RULES:
 - stopLoss: 3-6% below current for buys, 3-6% above for sells
 - target1: 8-12% from current price
 - target2: 15-20% from current price
-- Include exactly 8 signals: 4-5 buy/strongBuy, 1-2 sell/strongSell, 1-2 hold
 - signal values: strongBuy | buy | hold | sell | strongSell
 - confidence: integer 60-95
 - timeframe: always a value like "1-2 weeks" or "2-3 weeks"
-- If signal is sell/strongSell: entry must be ABOVE current price, target BELOW current price
+- If signal is sell/strongSell: entry ABOVE current price, target BELOW current price
 - NEVER return formulas — ALL values must be computed real numbers
 
 COMPANY NAMES — MUST BE EXACT:
@@ -66,13 +78,15 @@ COMPANY NAMES — MUST BE EXACT:
 - SNOW = Snowflake Inc.
 - CRWD = CrowdStrike Holdings, Inc.
 - DDOG = Datadog, Inc.
+- UBER = Uber Technologies, Inc.
+- SHOP = Shopify Inc.
 - Always verify ticker → company name mapping before returning
 
 REASONING QUALITY RULES:
-- BAD reasoning: "Stock has strong fundamentals and growing demand making it attractive"
-- GOOD reasoning: "NVDA broke above $205 resistance on 3x average volume; RSI at 58 with room to run before overbought. Upcoming GTC conference is a near-term catalyst for momentum continuation"
-- BAD reasoning: "Company continues to benefit from industry trends"
-- GOOD reasoning: "AAPL pulled back to $280 support after earnings — historically strong bounce zone. Services revenue grew 14% YoY providing earnings floor even if hardware slows"
+- BAD: "Stock has strong fundamentals and growing demand making it attractive"
+- GOOD: "NVDA broke above $205 resistance on 3x average volume; RSI at 58 with room to run before overbought. Upcoming GTC conference is a near-term catalyst for momentum continuation"
+- BAD: "Company continues to benefit from industry trends"
+- GOOD: "AAPL pulled back to $280 support after earnings — historically strong bounce zone. Services revenue grew 14% YoY providing earnings floor even if hardware slows"
 - Each reasoning MUST mention: specific price level OR indicator value OR recent event
 - reasoning must explain WHY NOW — not just why the stock is good in general
 - Every reasoning must be unique — no copy-paste between signals
