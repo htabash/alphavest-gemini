@@ -1,7 +1,3 @@
-function fmt(n: number): string {
-  return `$${Math.round(n)}`
-}
-
 export function signalsPrompt(lang: string, priceContext?: string) {
   const ar = lang === 'ar'
   const prices = priceContext
@@ -37,7 +33,7 @@ Return ONLY valid JSON matching this exact schema:
       "rsi": 52.4,
       "macd": "Bullish crossover",
       "trend": "Uptrend",
-      "reasoning": "2-sentence specific reasoning for this trade today",
+      "reasoning": "2-sentence reasoning mentioning current price action, key technical level or catalyst, and why NOW is the right time",
       "catalyst": "Key near-term catalyst"
     }
   ],
@@ -51,8 +47,6 @@ CRITICAL RULES:
 - Every signal MUST have entry, stopLoss, target1, target2 — never null or "-"
 - ALL price fields must be REAL DOLLAR NUMBERS — NEVER formulas like "price*0.97"
 - CRITICAL: Entry MUST be within 5% of the current price provided
-- If AAPL=$286, entry MUST be between $272-$300, NOT $194 or any other distant value
-- If TSLA=$398, entry MUST be between $378-$418, NOT any other range
 - Double-check EVERY entry against the current price before returning
 - entry format: "$193-198" — must be within 2-3% of current price
 - stopLoss: 3-6% below current for buys, 3-6% above for sells
@@ -64,6 +58,24 @@ CRITICAL RULES:
 - timeframe: always a value like "1-2 weeks" or "2-3 weeks"
 - If signal is sell/strongSell: entry must be ABOVE current price, target BELOW current price
 - NEVER return formulas — ALL values must be computed real numbers
+
+COMPANY NAMES — MUST BE EXACT:
+- CVNA = Carvana Co. (online used car marketplace) NOT Camping World
+- COIN = Coinbase Global, Inc.
+- PLTR = Palantir Technologies Inc.
+- SNOW = Snowflake Inc.
+- CRWD = CrowdStrike Holdings, Inc.
+- DDOG = Datadog, Inc.
+- Always verify ticker → company name mapping before returning
+
+REASONING QUALITY RULES:
+- BAD reasoning: "Stock has strong fundamentals and growing demand making it attractive"
+- GOOD reasoning: "NVDA broke above $205 resistance on 3x average volume; RSI at 58 with room to run before overbought. Upcoming GTC conference is a near-term catalyst for momentum continuation"
+- BAD reasoning: "Company continues to benefit from industry trends"
+- GOOD reasoning: "AAPL pulled back to $280 support after earnings — historically strong bounce zone. Services revenue grew 14% YoY providing earnings floor even if hardware slows"
+- Each reasoning MUST mention: specific price level OR indicator value OR recent event
+- reasoning must explain WHY NOW — not just why the stock is good in general
+- Every reasoning must be unique — no copy-paste between signals
 ${prices}`
 }
 
@@ -164,10 +176,10 @@ CRITICAL: Return ONLY valid JSON. NO formulas, NO expressions, ONLY real numeric
     "obv": "Rising"
   },
   "analysis": {
-    "summary": "4-5 sentence investment thesis specific to ${ticker} with current May 2026 catalysts.",
-    "bullish": ["Specific bullish factor 1","Specific bullish factor 2","Specific bullish factor 3","Specific bullish factor 4"],
-    "bearish": ["Specific risk 1","Specific risk 2","Specific risk 3"],
-    "catalysts": ["Near-term catalyst 1","Near-term catalyst 2"]
+    "summary": "4-5 sentence investment thesis specific to ${ticker} with current May 2026 catalysts and recent price action.",
+    "bullish": ["Specific bullish factor with data point","Specific bullish factor 2","Specific bullish factor 3","Specific bullish factor 4"],
+    "bearish": ["Specific risk with context","Specific risk 2","Specific risk 3"],
+    "catalysts": ["Specific near-term catalyst with date or event","Second catalyst"]
   },
   "news": [
     {"headline":"Specific recent headline for ${ticker}","source":"Reuters","time":"2h ago","sentiment":"positive"},
@@ -194,5 +206,6 @@ FINAL RULES:
 - score & confidence: integers 0-100
 - ALL numeric fields: real numbers only, zero formulas or expressions
 - Use REAL accurate fundamental data for ${ticker}
+- companyName must exactly match the ticker — verify before returning
 - historicalPrices not included — provided separately from market data API`
 }
