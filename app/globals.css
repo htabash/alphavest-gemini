@@ -38,6 +38,14 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
 .buy-tp{border-color:var(--green3);background:var(--green2)}.sell-tp{border-color:var(--red3);background:var(--red2)}.watch-tp{border-color:var(--gold3);background:var(--gold-bg)}
 .tpl{font-size:10px;color:var(--t2)}.tpt{font-family:'DM Mono',monospace;font-size:14px;font-weight:500}
 
+/* ✅ Sector Filter */
+.sector-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:10px 0}
+.sfb{display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;border:.5px solid var(--border);background:transparent;color:var(--t2);font-size:12px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.sfb:hover{border-color:var(--gold);color:var(--gold)}
+.sfb.on{background:rgba(201,168,76,0.12);border-color:var(--gold);color:var(--gold);font-weight:500}
+.sfc{background:rgba(255,255,255,0.08);border-radius:10px;padding:1px 6px;font-size:10px;font-family:'DM Mono',monospace}
+.sfb.on .sfc{background:rgba(201,168,76,0.2)}
+
 .sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:11px;padding-bottom:30px}
 .sc{background:var(--card);border:.5px solid var(--border);border-radius:13px;padding:14px 15px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:7px}
 .sc:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,0,0,.3)}
@@ -143,4 +151,14 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
 .ftr{border-top:.5px solid var(--border);margin-top:40px}
 .ftr-in{max-width:1200px;margin:0 auto;padding:12px 22px;font-size:11px;color:var(--t3);text-align:center}
 
-@media(max-width:768px){.sgrid{grid-template-columns:1fr}.tpicks{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.setup-g4{grid-template-columns:1fr 1fr}.ctable-h,.ctable-me,.ctable-row{grid-template-columns:65px 75px 1fr 45px}.panel{width:100%}.mbar{gap:10px}}
+@media(max-width:768px){
+  .sgrid{grid-template-columns:1fr}
+  .tpicks{grid-template-columns:1fr}
+  .grid2{grid-template-columns:1fr}
+  .setup-g4{grid-template-columns:1fr 1fr}
+  .ctable-h,.ctable-me,.ctable-row{grid-template-columns:65px 75px 1fr 45px}
+  .panel{width:100%}
+  .mbar{gap:10px}
+  .sector-filter{gap:6px}
+  .sfb{padding:5px 11px;font-size:11px}
+}
