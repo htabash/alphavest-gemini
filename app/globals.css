@@ -151,6 +151,16 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
 .ftr{border-top:.5px solid var(--border);margin-top:40px}
 .ftr-in{max-width:1200px;margin:0 auto;padding:12px 22px;font-size:11px;color:var(--t3);text-align:center}
 
+/* ✅ إصلاح Header على الموبايل */
+@media(max-width:600px) {
+  .dhead { flex-direction: column; gap: 8px; }
+  .dprice-col { text-align: left; }
+  [dir=rtl] .dprice-col { text-align: right; }
+  .dprice { font-size: 20px; }
+  .dsym { font-size: 10px; white-space: normal; }
+  .dname { font-size: 17px; }
+}
+
 @media(max-width:768px){
   .sgrid{grid-template-columns:1fr}
   .tpicks{grid-template-columns:1fr}
