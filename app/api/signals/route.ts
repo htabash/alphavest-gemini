@@ -10,7 +10,7 @@ const TICKERS = [
 ]
 
 let cache: { data: unknown; time: number } | null = null
-const CACHE_MS = 60 * 60 * 1000
+const CACHE_MS = 0
 
 export async function GET(req: NextRequest) {
   try {
