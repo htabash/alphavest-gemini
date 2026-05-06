@@ -18,40 +18,57 @@ function fVol(v: number): string {
   return `${(v/1e3).toFixed(1)}K`
 }
 
-async function fetchHistory(ticker: string, range: string, interval: string): Promise<number[]> {
+function getDateRange(days: number): { from: string; to: string } {
+  const to = new Date()
+  const from = new Date()
+  from.setDate(from.getDate() - days)
+  return {
+    from: from.toISOString().split('T')[0],
+    to: to.toISOString().split('T')[0]
+  }
+}
+
+async function fetchHistory(ticker: string, days: number, multiplier: number, timespan: string): Promise<number[]> {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=${interval}&range=${range}`
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+    const key = process.env.POLYGON_API_KEY
+    const { from, to } = getDateRange(days)
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${from}/${to}?adjusted=true&sort=asc&limit=50&apiKey=${key}`
+    const res = await fetch(url, { next: { revalidate: 3600 } })
     if (!res.ok) return []
     const json = await res.json()
-    const closes = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []
-    const filtered = closes.filter((v: number | null) => v !== null)
-    if (filtered.length <= 20) return filtered.map((v: number) => +v.toFixed(2))
-    const step = Math.floor(filtered.length / 20)
-    const sampled = Array.from({length: 20}, (_, i) => +filtered[Math.min(i * step, filtered.length-1)].toFixed(2))
-    sampled[19] = +filtered[filtered.length-1].toFixed(2)
+    const results = json?.results || []
+    if (results.length === 0) return []
+    const closes = results.map((r: { c: number }) => +r.c.toFixed(2))
+    if (closes.length <= 20) return closes
+    const step = Math.floor(closes.length / 20)
+    const sampled = Array.from({ length: 20 }, (_, i) => closes[Math.min(i * step, closes.length - 1)])
+    sampled[19] = closes[closes.length - 1]
     return sampled
   } catch { return [] }
 }
 
 export async function getQuote(ticker: string): Promise<QuoteData | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,regularMarketVolume,averageDailyVolume3Month,fiftyTwoWeekHigh,fiftyTwoWeekLow,marketCap,trailingPE,epsTrailingTwelveMonths,beta`
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }, next: { revalidate: 60 } })
+    const key = process.env.POLYGON_API_KEY
+    const url = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${ticker}?apiKey=${key}`
+    const res = await fetch(url, { next: { revalidate: 60 } })
     if (!res.ok) return null
     const json = await res.json()
-    const q = json?.quoteResponse?.result?.[0]
-    if (!q) return null
+    const snap = json?.ticker
+    if (!snap) return null
 
-    const price = +(q.regularMarketPrice || 0)
-    const change = +(q.regularMarketChange?.toFixed(2) || 0)
-    const changePct = +(q.regularMarketChangePercent?.toFixed(2) || 0)
+    const day = snap.day || {}
+    const prevDay = snap.prevDay || {}
+    const price = +(snap.lastTrade?.p || day.c || 0)
+    const prevClose = +(prevDay.c || price)
+    const change = +(price - prevClose).toFixed(2)
+    const changePct = prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : 0
 
     const [h1M, h3M, h6M, h1Y] = await Promise.all([
-      fetchHistory(ticker, '1mo', '1d'),
-      fetchHistory(ticker, '3mo', '1wk'),
-      fetchHistory(ticker, '6mo', '1wk'),
-      fetchHistory(ticker, '1y', '1mo'),
+      fetchHistory(ticker, 30, 1, 'day'),
+      fetchHistory(ticker, 90, 1, 'day'),
+      fetchHistory(ticker, 180, 1, 'week'),
+      fetchHistory(ticker, 365, 1, 'month'),
     ])
 
     return {
@@ -59,17 +76,17 @@ export async function getQuote(ticker: string): Promise<QuoteData | null> {
       price,
       priceChange: change,
       priceChangePct: changePct,
-      open: +(q.regularMarketOpen || price),
-      high: +(q.regularMarketDayHigh || price),
-      low: +(q.regularMarketDayLow || price),
-      volume: q.regularMarketVolume ? fVol(q.regularMarketVolume) : '—',
-      avgVolume: q.averageDailyVolume3Month ? fVol(q.averageDailyVolume3Month) : '—',
-      week52High: +(q.fiftyTwoWeekHigh || 0),
-      week52Low: +(q.fiftyTwoWeekLow || 0),
-      marketCap: q.marketCap ? fMcap(q.marketCap) : '—',
-      pe: q.trailingPE ? +q.trailingPE.toFixed(1) : null,
-      eps: q.epsTrailingTwelveMonths ? +q.epsTrailingTwelveMonths.toFixed(2) : null,
-      beta: q.beta ? +q.beta.toFixed(2) : null,
+      open: +(day.o || price),
+      high: +(day.h || price),
+      low: +(day.l || price),
+      volume: day.v ? fVol(day.v) : '—',
+      avgVolume: '—',
+      week52High: 0,
+      week52Low: 0,
+      marketCap: '—',
+      pe: null,
+      eps: null,
+      beta: null,
       history1M: h1M,
       history3M: h3M,
       history6M: h6M,
