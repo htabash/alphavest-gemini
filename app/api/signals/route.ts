@@ -6,18 +6,19 @@ import { getMultipleQuotes } from '@/lib/market'
 const TICKERS = [
   'NVDA','AAPL','MSFT','TSLA','AMZN','META','GOOGL','JPM',
   'AMAT','AMD','NFLX','CRM','UBER','COIN','PLTR','ARM',
-  'INTC','BABA','SHOP','SQ','PYPL','DIS','BA','GS'
+  'INTC','SHOP','SQ','PYPL','DIS','BA','GS','V','MA','WMT','HD'
 ]
 
-let cache: { data: unknown; time: number } | null = null
-const CACHE_MS = 0
+let cache: { data: unknown; time: number; lang: string } | null = null
+const CACHE_MS = 0 * 60 * 1000 // 15 minutes
 
 export async function GET(req: NextRequest) {
   try {
     const lang = req.nextUrl.searchParams.get('lang') || 'en'
     const now = Date.now()
 
-    if (cache && (now - cache.time) < CACHE_MS) {
+    // Return cached data if less than 15 minutes old
+    if (cache && (now - cache.time) < CACHE_MS && cache.lang === lang) {
       const data = cache.data as Record<string, unknown>
       const signals = data.signals as Array<Record<string, unknown>>
       if (signals?.length) {
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data)
     }
 
-    // Get real prices first
+    // Generate new signals with real prices
     const quotes = await getMultipleQuotes(TICKERS)
     const priceContext = TICKERS
       .filter(t => quotes[t])
@@ -45,7 +46,6 @@ export async function GET(req: NextRequest) {
     const aiData = await generateJSON(signalsPrompt(lang, priceContext))
     const data = aiData as Record<string, unknown>
 
-    // Override with real prices
     if (data?.signals && Array.isArray(data.signals)) {
       data.signals = (data.signals as Array<Record<string, unknown>>).map(s => {
         const q = quotes[s.ticker as string]
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    cache = { data, time: now }
+    cache = { data, time: now, lang }
     return NextResponse.json(data)
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error'
