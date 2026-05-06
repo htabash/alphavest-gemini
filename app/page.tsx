@@ -1,15 +1,27 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Search, RefreshCw, TrendingUp, Zap, BarChart2 } from 'lucide-react'
-import { SignalsData, StockData, SIG, sigL, Lang } from './components/types'
+import { SignalsData, StockData, Lang, TradeSignal } from './components/types'
 import SignalCard from './components/SignalCard'
 import StockDetail from './components/StockDetail'
 
 const TX = {
-  en:{ title:'AlphaVest', sub:'US Trading Signals · AI Powered', signals:"Today's Signals", query:'Stock Query', refresh:'Refresh', loadSig:'Generating today\'s signals...', loadStock:'Analyzing stock...', ph:'Search ticker... AAPL, NVDA, TSLA', empty:'Enter a US ticker for complete analysis', disc:'For informational purposes only. Not financial advice. · AlphaVest © 2026 · Powered by Gemini AI' },
-  ar:{ title:'AlphaVest', sub:'توصيات التداول الأمريكي · مدعوم بالذكاء الاصطناعي', signals:'توصيات اليوم', query:'استعلام سهم', refresh:'تحديث', loadSig:'جارٍ إنشاء توصيات اليوم...', loadStock:'جارٍ تحليل السهم...', ph:'ابحث عن سهم... AAPL أو NVDA أو TSLA', empty:'أدخل رمز سهم أمريكي للحصول على تحليل كامل', disc:'للأغراض التعليمية فقط. ليست نصيحة مالية. · AlphaVest © 2026 · Gemini AI' }
+  en:{ title:'AlphaVest', sub:'US Trading Signals · AI Powered', signals:"Today's Signals", query:'Stock Query', refresh:'Refresh', loadSig:'Generating today\'s signals...', loadStock:'Analyzing stock...', ph:'Search ticker... AAPL, NVDA, TSLA', empty:'Enter a US ticker for complete analysis', disc:'For informational purposes only. Not financial advice. · AlphaVest © 2026 · Powered by Groq AI' },
+  ar:{ title:'AlphaVest', sub:'توصيات التداول الأمريكي · مدعوم بالذكاء الاصطناعي', signals:'توصيات اليوم', query:'استعلام سهم', refresh:'تحديث', loadSig:'جارٍ إنشاء توصيات اليوم...', loadStock:'جارٍ تحليل السهم...', ph:'ابحث عن سهم... AAPL أو NVDA أو TSLA', empty:'أدخل رمز سهم أمريكي للحصول على تحليل كامل', disc:'للأغراض التعليمية فقط. ليست نصيحة مالية. · AlphaVest © 2026 · Groq AI' }
 }
+
 const QUICK = ['NVDA','AAPL','MSFT','TSLA','AMZN','META','GOOGL','JPM','AMAT','AMD','NFLX','INTC']
+
+// ✅ تعريف القطاعات
+const SECTORS = [
+  { key: 'all',        en: 'All',         ar: 'الكل' },
+  { key: 'Technology', en: 'Tech',        ar: 'تقنية' },
+  { key: 'Financials', en: 'Finance',     ar: 'مالية' },
+  { key: 'Energy',     en: 'Energy',      ar: 'طاقة' },
+  { key: 'Healthcare', en: 'Healthcare',  ar: 'صحة' },
+  { key: 'Consumer',   en: 'Consumer',    ar: 'استهلاك' },
+  { key: 'Industrials',en: 'Industrial',  ar: 'صناعة' },
+]
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>('en')
@@ -19,24 +31,41 @@ export default function Home() {
   const [search, setSearch] = useState('')
   const [loadStock, setLoadStock] = useState(false)
   const [stock, setStock] = useState<StockData|null>(null)
+  const [sector, setSector] = useState('all') // ✅ فلتر القطاع
   const tx = TX[lang]
 
   const fetchSignals = useCallback(async () => {
     setLoadSig(true)
-    try { const r = await fetch(`/api/signals?lang=${lang}`); setSignals(await r.json()) }
-    catch(e){console.error(e)} finally{setLoadSig(false)}
+    try {
+      const r = await fetch(`/api/signals?lang=${lang}`)
+      setSignals(await r.json())
+    } catch(e){ console.error(e) } finally { setLoadSig(false) }
   }, [lang])
 
-  useEffect(()=>{fetchSignals()},[fetchSignals])
+  useEffect(() => { fetchSignals() }, [fetchSignals])
 
   const analyze = async (ticker: string) => {
     if(!ticker.trim()) return
     setLoadStock(true); setStock(null); setTab('query')
-    try { const r = await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticker:ticker.toUpperCase(),lang})}); setStock(await r.json()) }
-    catch(e){console.error(e)} finally{setLoadStock(false)}
+    try {
+      const r = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker: ticker.toUpperCase(), lang })
+      })
+      setStock(await r.json())
+    } catch(e){ console.error(e) } finally { setLoadStock(false) }
   }
 
-  const sentCol = (s:string) => s==='Bullish'||s==='صعودي'?'#2EC98A':s==='Bearish'||s==='هبوطي'?'#E85555':'#E8A630'
+  const sentCol = (s:string) =>
+    s==='Bullish'||s==='صعودي' ? '#2EC98A' :
+    s==='Bearish'||s==='هبوطي' ? '#E85555' : '#E8A630'
+
+  // ✅ فلترة الـ signals بناءً على القطاع المختار
+  const filteredSignals = (signals?.signals || []).filter((s: TradeSignal) => {
+    if (sector === 'all') return true
+    return s.sector?.toLowerCase().includes(sector.toLowerCase())
+  })
 
   return (
     <div className="app" dir={lang==='ar'?'rtl':'ltr'}>
@@ -65,7 +94,10 @@ export default function Home() {
             {signals?.marketSummary&&(
               <div className="mbar">
                 {[['S&P 500',signals.marketSummary.sp500],['NASDAQ',signals.marketSummary.nasdaq],['VIX',signals.marketSummary.vix],[lang==='ar'?'المشاعر':'Sentiment',signals.marketSummary.sentiment]].map(([k,v])=>(
-                  <div key={k} className="mi"><span className="mk">{k}</span><span className="mv" style={{color:k==='Sentiment'||k==='المشاعر'?sentCol(v):(v.startsWith?.('+'))?'#2EC98A':v.startsWith?.('-')?'#E85555':'inherit'}}>{v}</span></div>
+                  <div key={k} className="mi">
+                    <span className="mk">{k}</span>
+                    <span className="mv" style={{color:k==='Sentiment'||k==='المشاعر'?sentCol(v):(v.startsWith?.('+'))?'#2EC98A':v.startsWith?.('-')?'#E85555':'inherit'}}>{v}</span>
+                  </div>
                 ))}
                 <div className="mnote">{signals.marketSummary.note}</div>
               </div>
@@ -79,9 +111,45 @@ export default function Home() {
               </div>
             )}
 
+            {/* ✅ فلتر القطاعات */}
+            {signals&&(
+              <div className="sector-filter">
+                {SECTORS.map(s => (
+                  <button
+                    key={s.key}
+                    className={`sfb ${sector === s.key ? 'on' : ''}`}
+                    onClick={() => setSector(s.key)}
+                  >
+                    {lang === 'ar' ? s.ar : s.en}
+                    {s.key !== 'all' && (
+                      <span className="sfc">
+                        {(signals.signals || []).filter((sig: TradeSignal) =>
+                          sig.sector?.toLowerCase().includes(s.key.toLowerCase())
+                        ).length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {loadSig&&<div className="loading"><div className="ring"/><div className="lmsg">{tx.loadSig}</div></div>}
+
             {!loadSig&&signals?.signals&&(
-              <div className="sgrid">{signals.signals.map(s=><SignalCard key={s.ticker} s={s} lang={lang} onClick={()=>analyze(s.ticker)}/>)}</div>
+              <>
+                {filteredSignals.length === 0 ? (
+                  <div className="empty" style={{marginTop:40}}>
+                    <BarChart2 size={44} color="var(--t3)"/>
+                    <p>{lang==='ar'?'لا توجد توصيات في هذا القطاع اليوم':'No signals in this sector today'}</p>
+                  </div>
+                ) : (
+                  <div className="sgrid">
+                    {filteredSignals.map(s => (
+                      <SignalCard key={s.ticker} s={s} lang={lang} onClick={() => analyze(s.ticker)}/>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -92,12 +160,20 @@ export default function Home() {
             <div className="sbox-wrap">
               <div className="sbox">
                 <Search size={15} color="var(--t3)"/>
-                <input className="sinp" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&analyze(search)} placeholder={tx.ph}/>
+                <input
+                  className="sinp"
+                  value={search}
+                  onChange={e=>setSearch(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&analyze(search)}
+                  placeholder={tx.ph}
+                />
                 <button className="abtn" onClick={()=>analyze(search)} disabled={loadStock}>
                   {loadStock?<span className="spin-sm"/>:<><BarChart2 size={13}/> {lang==='ar'?'تحليل':'Analyze'}</>}
                 </button>
               </div>
-              <div className="qchips">{QUICK.map(t=><button key={t} className="qchip" onClick={()=>{setSearch(t);analyze(t)}}>{t}</button>)}</div>
+              <div className="qchips">
+                {QUICK.map(t=><button key={t} className="qchip" onClick={()=>{setSearch(t);analyze(t)}}>{t}</button>)}
+              </div>
             </div>
             {loadStock&&<div className="loading"><div className="ring"/><div className="lmsg">{tx.loadStock}</div></div>}
             {!loadStock&&!stock&&<div className="empty"><BarChart2 size={44} color="var(--t3)"/><p>{tx.empty}</p></div>}
