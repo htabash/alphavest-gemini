@@ -3,7 +3,11 @@ import { generateJSON } from '@/lib/groq'
 import { signalsPrompt } from '@/lib/prompts'
 import { getMultipleQuotes } from '@/lib/market'
 
-const TICKERS = ['NVDA','AAPL','MSFT','TSLA','AMZN','META','GOOGL','JPM','AMAT','AMD','NFLX','CRM']
+const TICKERS = [
+  'NVDA','AAPL','MSFT','TSLA','AMZN','META','GOOGL','JPM',
+  'AMAT','AMD','NFLX','CRM','UBER','COIN','PLTR','ARM',
+  'INTC','BABA','SHOP','SQ','PYPL','DIS','BA','GS'
+]
 
 let cache: { data: unknown; time: number } | null = null
 const CACHE_MS = 60 * 60 * 1000
