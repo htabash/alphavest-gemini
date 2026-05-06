@@ -85,8 +85,6 @@ COMPANY NAMES — MUST BE EXACT:
 REASONING QUALITY RULES:
 - BAD: "Stock has strong fundamentals and growing demand making it attractive"
 - GOOD: "NVDA broke above $205 resistance on 3x average volume; RSI at 58 with room to run before overbought. Upcoming GTC conference is a near-term catalyst for momentum continuation"
-- BAD: "Company continues to benefit from industry trends"
-- GOOD: "AAPL pulled back to $280 support after earnings — historically strong bounce zone. Services revenue grew 14% YoY providing earnings floor even if hardware slows"
 - Each reasoning MUST mention: specific price level OR indicator value OR recent event
 - reasoning must explain WHY NOW — not just why the stock is good in general
 - Every reasoning must be unique — no copy-paste between signals
@@ -118,6 +116,21 @@ export function analyzePrompt(ticker: string, lang: string, price?: number) {
   const w52High   = p ? Math.round(p * 1.25)  : '[estimate]'
   const w52Low    = p ? Math.round(p * 0.60)  : '[estimate]'
 
+  // ✅ Competitors حقيقيون لكل سهم
+  const competitorMap: Record<string, string> = {
+    NVDA: 'For NVDA use competitors: AMD (Advanced Micro Devices), INTC (Intel Corporation), QCOM (Qualcomm)',
+    AAPL: 'For AAPL use competitors: MSFT (Microsoft), GOOGL (Alphabet), SMSN (Samsung Electronics)',
+    MSFT: 'For MSFT use competitors: GOOGL (Alphabet), AAPL (Apple), CRM (Salesforce)',
+    TSLA: 'For TSLA use competitors: RIVN (Rivian), GM (General Motors), F (Ford Motor)',
+    AMZN: 'For AMZN use competitors: MSFT (Microsoft Azure), GOOGL (Google Cloud), WMT (Walmart)',
+    META: 'For META use competitors: GOOGL (Alphabet), SNAP (Snap), PINS (Pinterest)',
+    GOOGL: 'For GOOGL use competitors: MSFT (Microsoft), META (Meta), AMZN (Amazon)',
+    JPM: 'For JPM use competitors: BAC (Bank of America), WFC (Wells Fargo), GS (Goldman Sachs)',
+    AMD: 'For AMD use competitors: NVDA (NVIDIA), INTC (Intel), QCOM (Qualcomm)',
+    NFLX: 'For NFLX use competitors: DIS (Walt Disney), PARA (Paramount), WBD (Warner Bros)',
+  }
+  const competitorHint = competitorMap[ticker] || `Use 3 real direct competitors for ${ticker} with accurate tickers`
+
   return `You are a professional financial analyst. Analyze US stock: ${ticker}
 ${ar ? 'ALL text fields must be in Arabic.' : 'All text in English.'}
 ${priceHint}
@@ -141,7 +154,7 @@ CRITICAL: Return ONLY valid JSON. NO formulas, NO expressions, ONLY real numeric
   "avgVolume": "245.0M",
   "week52High": ${w52High},
   "week52Low": ${w52Low},
-  "marketCap": "use real market cap",
+  "marketCap": "use real market cap formatted like $2.1T or $175B",
   "beta": 1.68,
   "signal": "buy",
   "confidence": 82,
@@ -196,10 +209,10 @@ CRITICAL: Return ONLY valid JSON. NO formulas, NO expressions, ONLY real numeric
     "catalysts": ["Specific near-term catalyst with date or event","Second catalyst"]
   },
   "news": [
-    {"headline":"Specific recent headline for ${ticker}","source":"Reuters","time":"2h ago","sentiment":"positive"},
-    {"headline":"Second relevant headline","source":"Bloomberg","time":"5h ago","sentiment":"neutral"},
-    {"headline":"Third headline","source":"WSJ","time":"1d ago","sentiment":"positive"},
-    {"headline":"Fourth headline","source":"CNBC","time":"2d ago","sentiment":"negative"}
+    {"headline":"Specific unique recent headline about ${ticker}","source":"Reuters","time":"2h ago","sentiment":"positive"},
+    {"headline":"Different second headline about ${ticker} earnings or products","source":"Bloomberg","time":"5h ago","sentiment":"neutral"},
+    {"headline":"Third unique headline about ${ticker} partnerships or growth","source":"WSJ","time":"1d ago","sentiment":"positive"},
+    {"headline":"Fourth headline about ${ticker} risks or competition","source":"CNBC","time":"2d ago","sentiment":"negative"}
   ],
   "analystRatings": {
     "buy": 28, "hold": 8, "sell": 2,
@@ -209,17 +222,29 @@ CRITICAL: Return ONLY valid JSON. NO formulas, NO expressions, ONLY real numeric
     "consensus": "Strong Buy"
   },
   "competitors": [
-    {"ticker":"COMP1","name":"Competitor 1","price":108.40,"marketCap":"$175B","pe":48.2,"signal":"hold","ytd":"-8.4%"},
-    {"ticker":"COMP2","name":"Competitor 2","price":21.30,"marketCap":"$91B","pe":null,"signal":"sell","ytd":"-42.1%"},
-    {"ticker":"COMP3","name":"Competitor 3","price":188.60,"marketCap":"$876B","pe":38.4,"signal":"buy","ytd":"+22.8%"}
+    {"ticker":"REAL_TICKER_1","name":"Real Competitor 1 Full Name","price": 108.40,"marketCap":"$175B","pe":48.2,"signal":"hold","ytd":"-8.4%"},
+    {"ticker":"REAL_TICKER_2","name":"Real Competitor 2 Full Name","price": 21.30,"marketCap":"$91B","pe":null,"signal":"sell","ytd":"-42.1%"},
+    {"ticker":"REAL_TICKER_3","name":"Real Competitor 3 Full Name","price": 188.60,"marketCap":"$876B","pe":38.4,"signal":"buy","ytd":"+22.8%"}
   ]
 }
+
+COMPETITORS RULES:
+- ${competitorHint}
+- NEVER use COMP1, COMP2, COMP3 — always use real tickers
+- marketCap must be formatted as string like "$175B" or "$2.1T" — NEVER raw numbers like 175000000000
+- price must be approximate real market price
+- ytd must be realistic percentage
+
+NEWS RULES:
+- Each headline must be UNIQUE and DIFFERENT — no repetition
+- Headlines must be specific to ${ticker} — not generic
+- Do NOT repeat the same sentence structure for all 4 headlines
 
 FINAL RULES:
 - signal: strongBuy | buy | hold | sell | strongSell only
 - score & confidence: integers 0-100
 - ALL numeric fields: real numbers only, zero formulas or expressions
 - Use REAL accurate fundamental data for ${ticker}
-- companyName must exactly match the ticker — verify before returning
+- companyName must exactly match the ticker
 - historicalPrices not included — provided separately from market data API`
 }
