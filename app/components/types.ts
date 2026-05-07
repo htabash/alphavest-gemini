@@ -7,8 +7,8 @@ export interface TradeSignal {
   entry: string; stopLoss: string; target1: string; target2: string
   timeframe: string; rsi: number; macd: string; trend: string
   reasoning: string; catalyst: string
-  setupValid?: boolean   // ✅ جديد
-  setupNote?: string     // ✅ جديد
+  setupValid?: boolean
+  setupNote?: string
 }
 
 export interface MarketSummary { sp500: string; nasdaq: string; sentiment: string; vix: string; note: string }
@@ -28,6 +28,21 @@ export interface StockData {
   competitors: Array<Record<string,unknown>>
 }
 
+// ✅ Portfolio Types
+export interface Position {
+  id: string
+  ticker: string
+  companyName: string
+  entryPrice: number
+  quantity: number
+  entryDate: string
+  stopLoss: number
+  target1: number
+  target2: number
+  signal: Signal
+  notes?: string
+}
+
 export const SIG: Record<Signal,{en:string;ar:string;color:string;bg:string;border:string}> = {
   strongBuy:  {en:'STRONG BUY',  ar:'شراء قوي', color:'#2EC98A',bg:'rgba(46,201,138,.13)', border:'#145C3C'},
   buy:        {en:'BUY',         ar:'شراء',      color:'#2EC98A',bg:'rgba(46,201,138,.13)', border:'#145C3C'},
@@ -35,5 +50,4 @@ export const SIG: Record<Signal,{en:string;ar:string;color:string;bg:string;bord
   sell:       {en:'SELL',        ar:'بيع',        color:'#E85555',bg:'rgba(232,85,85,.13)',  border:'#6A2020'},
   strongSell: {en:'STRONG SELL', ar:'بيع قوي',   color:'#E85555',bg:'rgba(232,85,85,.13)',  border:'#6A2020'},
 }
-
 export const sigL = (s: Signal, l: Lang) => l === 'ar' ? SIG[s]?.ar : SIG[s]?.en
