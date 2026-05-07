@@ -38,7 +38,6 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
 .buy-tp{border-color:var(--green3);background:var(--green2)}.sell-tp{border-color:var(--red3);background:var(--red2)}.watch-tp{border-color:var(--gold3);background:var(--gold-bg)}
 .tpl{font-size:10px;color:var(--t2)}.tpt{font-family:'DM Mono',monospace;font-size:14px;font-weight:500}
 
-/* ✅ Sector Filter */
 .sector-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:10px 0}
 .sfb{display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;border:.5px solid var(--border);background:transparent;color:var(--t2);font-size:12px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
 .sfb:hover{border-color:var(--gold);color:var(--gold)}
@@ -99,16 +98,19 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
 .panel-close:hover{color:var(--t);background:var(--bg3)}
 [dir=rtl] .panel-close{margin-left:0;margin-right:auto}
 
-.dhead{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;background:var(--card);border:.5px solid var(--border);border-radius:14px;padding:15px 17px;position:relative;overflow:hidden}
+/* ✅ Header محسّن */
+.dhead{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;background:var(--card);border:.5px solid var(--border);border-radius:14px;padding:15px 17px;position:relative;overflow:hidden}
 .dhead::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold3),var(--gold),transparent)}
-.dsym{font-size:11px;color:var(--gold);font-family:'DM Mono',monospace;margin-bottom:3px;letter-spacing:.5px}
+.dsym{font-size:11px;color:var(--gold);font-family:'DM Mono',monospace;letter-spacing:.5px}
 .dname{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:700;margin-bottom:5px;word-break:break-word}
-.dtags{display:flex;gap:6px;flex-wrap:wrap}
+.dtags{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
 .tag{font-size:10px;padding:2px 8px;border-radius:20px;background:var(--bg3);color:var(--t2);border:.5px solid var(--border)}
 .ddesc{font-size:12px;color:var(--t2);margin-top:8px;line-height:1.5;max-width:420px}
-.dprice-col{text-align:right;flex-shrink:0}
+
+/* ✅ Price column محسّن */
+.dprice-col{text-align:right;flex-shrink:0;min-width:120px}
 [dir=rtl] .dprice-col{text-align:left}
-.dprice{font-family:'DM Mono',monospace;font-size:24px;font-weight:500}
+.dprice{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;white-space:nowrap}
 .dbadge{display:inline-flex;align-items:center;gap:5px;margin-top:9px;padding:6px 13px;border-radius:9px;font-size:12px;font-weight:500}
 
 .setup-box{background:var(--card);border:.5px solid var(--border);border-left:3px solid var(--gold);border-radius:12px;padding:13px 15px}
@@ -163,17 +165,16 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
   .sector-filter{gap:6px}
   .sfb{padding:5px 11px;font-size:11px}
   .dhead{flex-direction:column;gap:8px}
-  .dprice-col{text-align:left;width:100%}
+  .dprice-col{text-align:left;width:100%;min-width:unset}
   [dir=rtl] .dprice-col{text-align:right}
   .dprice{font-size:20px}
-  .dsym{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dsym{font-size:10px}
   .dname{font-size:17px}
 }
 
 @media(max-width:480px){
   .dprice{font-size:18px}
   .dhead{padding:10px 12px}
-  .setup-g4{grid-template-columns:1fr 1fr}
   .hdr-in{padding:0 12px;gap:10px}
   .main{padding:14px 14px 0}
 }
