@@ -24,35 +24,50 @@ const TICKERS = [
 
 const UNIQUE_TICKERS = [...new Set(TICKERS)]
 
-let cache: { data: unknown; time: number; lang: string } | null = null
-const CACHE_MS = 15 * 60 * 1000
+// ✅ Cache منفصل لكل لغة
+const cache = new Map<string, { data: unknown; time: number }>()
+const CACHE_MS = 15 * 60 * 1000 // 15 دقيقة
 
 export async function GET(req: NextRequest) {
   try {
     const lang = req.nextUrl.searchParams.get('lang') || 'en'
     const now = Date.now()
+    const cacheKey = `signals-${lang}`
 
-    if (cache && (now - cache.time) < CACHE_MS && cache.lang === lang) {
-      const data = cache.data as Record<string, unknown>
-      const signals = data.signals as Array<Record<string, unknown>>
-      if (signals?.length) {
-        const tickers = signals.map(s => s.ticker as string)
-        const quotes = await getMultipleQuotes(tickers)
-        const updated = {
-          ...data,
-          signals: signals.map(s => {
-            const q = quotes[s.ticker as string]
-            if (!q) return s
-            return buildSignal(s, q.price, q.priceChange, q.priceChangePct)
-          })
+    // ✅ تحقق من الكاش لكل لغة بشكل منفصل
+    if (cache.has(cacheKey)) {
+      const cached = cache.get(cacheKey)!
+      if (now - cached.time < CACHE_MS) {
+        const data = cached.data as Record<string, unknown>
+        const signals = data.signals as Array<Record<string, unknown>>
+        if (signals?.length) {
+          const tickers = signals.map(s => s.ticker as string)
+          const quotes = await getMultipleQuotes(tickers)
+          const updated = {
+            ...data,
+            signals: signals.map(s => {
+              const q = quotes[s.ticker as string]
+              return q ? {
+                ...s,
+                price: q.price,
+                priceChange: q.priceChange,
+                priceChangePct: q.priceChangePct
+              } : s
+            })
+          }
+          return NextResponse.json(updated)
         }
-        return NextResponse.json(updated)
+        return NextResponse.json(data)
       }
-      return NextResponse.json(data)
     }
 
+    // ✅ جلب أسعار كل الأسهم
     const quotes = await getMultipleQuotes(UNIQUE_TICKERS)
+
+    // ✅ اختر أفضل 50 مرشح بناءً على momentum
     const topTickers = selectTopCandidates(quotes, 50)
+
+    // ✅ أرسل للـ AI السعر الحقيقي
     const priceContext = topTickers
       .filter(t => quotes[t])
       .map(t => `${t}=$${quotes[t].price}`)
@@ -61,6 +76,7 @@ export async function GET(req: NextRequest) {
     const aiData = await generateJSON(signalsPrompt(lang, priceContext))
     const data = aiData as Record<string, unknown>
 
+    // ✅ Override بالأسعار الحقيقية + build setup
     if (data?.signals && Array.isArray(data.signals)) {
       data.signals = (data.signals as Array<Record<string, unknown>>).map(s => {
         const q = quotes[s.ticker as string]
@@ -69,7 +85,9 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    cache = { data, time: now, lang }
+    // ✅ حفظ في الكاش بمفتاح اللغة
+    cache.set(cacheKey, { data, time: now })
+
     return NextResponse.json(data)
 
   } catch (e: unknown) {
@@ -78,7 +96,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ✅ بناء الـ signal مع Entry/Stop/Target محسوبة من السعر الحقيقي دائماً
+// ✅ بناء الـ signal مع Entry/Stop/Target محسوبة
 function buildSignal(
   s: Record<string, unknown>,
   price: number,
@@ -88,7 +106,6 @@ function buildSignal(
   const signal = (s.signal as string)?.toLowerCase()
   const isSell = signal?.includes('sell')
   const isHold = signal?.includes('hold')
-
   const p = price
 
   let entry: string
@@ -96,20 +113,17 @@ function buildSignal(
   let target1: string
   let target2: string
 
-  if (isHold) {
-    // HOLD: entry حول السعر الحالي، targets أضيق
-    entry    = `$${Math.round(p * 0.98)}-${Math.round(p * 1.02)}`
-    stopLoss = `$${Math.round(p * 0.93)}`
-    target1  = `$${Math.round(p * 1.07)}`
-    target2  = `$${Math.round(p * 1.12)}`
-  } else if (isSell) {
-    // SELL: entry فوق السعر، target تحته
+  if (isSell) {
     entry    = `$${Math.round(p * 1.01)}-${Math.round(p * 1.03)}`
     stopLoss = `$${Math.round(p * 1.06)}`
     target1  = `$${Math.round(p * 0.90)}`
     target2  = `$${Math.round(p * 0.82)}`
+  } else if (isHold) {
+    entry    = `$${Math.round(p * 0.98)}-${Math.round(p * 1.02)}`
+    stopLoss = `$${Math.round(p * 0.93)}`
+    target1  = `$${Math.round(p * 1.07)}`
+    target2  = `$${Math.round(p * 1.12)}`
   } else {
-    // BUY / STRONG BUY: entry تحت السعر قليلاً
     entry    = `$${Math.round(p * 0.97)}-${Math.round(p * 1.01)}`
     stopLoss = `$${Math.round(p * 0.94)}`
     target1  = `$${Math.round(p * 1.10)}`
