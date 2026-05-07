@@ -12,7 +12,6 @@ export async function POST(req: NextRequest) {
     if (!ticker) return NextResponse.json({ error: 'Ticker required' }, { status: 400 })
 
     const sym = ticker.toUpperCase()
-    // ✅ الكاش يشمل الـ signal — نفس السهم بـ signal مختلف = cache مختلف
     const cacheKey = `${sym}-${lang || 'en'}-${originalSignal || 'query'}`
     const now = Date.now()
 
@@ -66,13 +65,13 @@ export async function POST(req: NextRequest) {
     const quote = await getQuote(sym)
     const realPrice = quote?.price && quote.price > 0 ? quote.price : undefined
 
-    // ✅ أرسل الـ signal للـ prompt
+    // ✅ أرسل الـ lang للـ generateJSON
     const aiData = await generateJSON(
-      analyzePrompt(sym, lang || 'en', realPrice, originalSignal || undefined)
+      analyzePrompt(sym, lang || 'en', realPrice, originalSignal || undefined),
+      lang || 'en'
     )
     const data = aiData as Record<string, unknown>
 
-    // ✅ Force override signal — لا نثق بالـ AI هنا
     if (originalSignal) data.signal = originalSignal
 
     if (quote) {
