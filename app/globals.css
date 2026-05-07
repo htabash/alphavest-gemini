@@ -98,7 +98,6 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
 .panel-close:hover{color:var(--t);background:var(--bg3)}
 [dir=rtl] .panel-close{margin-left:0;margin-right:auto}
 
-/* ✅ Header محسّن */
 .dhead{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;background:var(--card);border:.5px solid var(--border);border-radius:14px;padding:15px 17px;position:relative;overflow:hidden}
 .dhead::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold3),var(--gold),transparent)}
 .dsym{font-size:11px;color:var(--gold);font-family:'DM Mono',monospace;letter-spacing:.5px}
@@ -106,8 +105,6 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
 .dtags{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
 .tag{font-size:10px;padding:2px 8px;border-radius:20px;background:var(--bg3);color:var(--t2);border:.5px solid var(--border)}
 .ddesc{font-size:12px;color:var(--t2);margin-top:8px;line-height:1.5;max-width:420px}
-
-/* ✅ Price column محسّن */
 .dprice-col{text-align:right;flex-shrink:0;min-width:120px}
 [dir=rtl] .dprice-col{text-align:left}
 .dprice{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;white-space:nowrap}
@@ -154,6 +151,27 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
 .ftr{border-top:.5px solid var(--border);margin-top:40px}
 .ftr-in{max-width:1200px;margin:0 auto;padding:12px 22px;font-size:11px;color:var(--t3);text-align:center}
 
+/* ✅ Portfolio Styles */
+.port-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.port-stat{background:var(--card);border:.5px solid var(--border);border-radius:12px;padding:14px 16px;position:relative;overflow:hidden}
+.port-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold3),var(--gold),transparent)}
+.port-stat-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.port-stat-val{font-family:'DM Mono',monospace;font-size:18px;font-weight:500}
+.port-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:11px;padding-bottom:30px}
+.port-card{background:var(--card);border:.5px solid var(--border);border-radius:13px;padding:14px 15px;display:flex;flex-direction:column;gap:10px;transition:all .2s}
+.port-card:hover{border-color:var(--border2);box-shadow:0 8px 28px rgba(0,0,0,.3)}
+.port-card-top{display:flex;justify-content:space-between;align-items:flex-start}
+.port-levels{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.port-level{background:var(--bg3);border-radius:6px;padding:5px 7px;text-align:center}
+
+/* ✅ Form Input */
+.port-input{flex:1;background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;color:var(--t);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%}
+.port-input:focus{border-color:var(--gold3)}
+.port-input::placeholder{color:var(--t3)}
+.port-select{background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;color:var(--t);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;cursor:pointer}
+.port-select:focus{border-color:var(--gold3)}
+.port-label{font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;display:block}
+
 @media(max-width:768px){
   .sgrid{grid-template-columns:1fr}
   .tpicks{grid-template-columns:1fr}
@@ -170,6 +188,8 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
   .dprice{font-size:20px}
   .dsym{font-size:10px}
   .dname{font-size:17px}
+  .port-summary{grid-template-columns:1fr 1fr}
+  .port-grid{grid-template-columns:1fr}
 }
 
 @media(max-width:480px){
@@ -177,4 +197,5 @@ html,body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;m
   .dhead{padding:10px 12px}
   .hdr-in{padding:0 12px;gap:10px}
   .main{padding:14px 14px 0}
+  .port-summary{grid-template-columns:1fr 1fr}
 }
