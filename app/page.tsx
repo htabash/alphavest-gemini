@@ -22,20 +22,39 @@ const SECTORS = [
   { key: 'Industrials', en: 'Industrial', ar: 'صناعة' },
 ]
 
+// ✅ كلمات مفتاحية إنجليزية وعربية لكل قطاع
 const SECTOR_KEYWORDS: Record<string, string[]> = {
-  'Technology':  ['tech', 'software', 'semiconductor', 'it ', 'internet', 'cloud', 'ai', 'data', 'cyber', 'saas'],
-  'Financials':  ['financ', 'bank', 'insurance', 'invest', 'capital', 'asset', 'payment', 'exchange'],
-  'Energy':      ['energy', 'oil', 'gas', 'petroleum', 'power', 'utilities', 'renewab'],
-  'Healthcare':  ['health', 'pharma', 'biotech', 'medical', 'drug', 'life science', 'hospital'],
-  'Consumer':    ['consumer', 'retail', 'food', 'beverage', 'discretionary', 'staples', 'apparel', 'restaurant'],
-  'Industrials': ['industri', 'aerospace', 'defense', 'transport', 'manufactur', 'logistic', 'machinery'],
+  'Technology':  [
+    'tech', 'software', 'semiconductor', 'internet', 'cloud', 'ai', 'data', 'cyber', 'saas',
+    'تقني', 'برمجي', 'حالات', 'ذكاء', 'بيانات', 'سحاب', 'آلي', 'معلومات', 'إلكتروني',
+  ],
+  'Financials':  [
+    'financ', 'bank', 'insurance', 'invest', 'capital', 'asset', 'payment', 'exchange',
+    'مالي', 'مصرف', 'بنك', 'استثمار', 'تأمين', 'رأس المال', 'دفع',
+  ],
+  'Energy':      [
+    'energy', 'oil', 'gas', 'petroleum', 'power', 'utilities', 'renewab',
+    'طاق', 'نفط', 'غاز', 'بترول', 'ميثال', 'كهرب', 'طبيعي',
+  ],
+  'Healthcare':  [
+    'health', 'pharma', 'biotech', 'medical', 'drug', 'life science', 'hospital',
+    'صح', 'دواء', 'طب', 'بيو', 'مستشفى', 'علاج', 'رعاية',
+  ],
+  'Consumer':    [
+    'consumer', 'retail', 'food', 'beverage', 'discretionary', 'staples', 'apparel', 'restaurant',
+    'استهلاك', 'تجزئة', 'غذاء', 'ترفيه', 'سيارات', 'ملابس', 'مطعم',
+  ],
+  'Industrials': [
+    'industri', 'aerospace', 'defense', 'transport', 'manufactur', 'logistic', 'machinery',
+    'صناع', 'طيران', 'دفاع', 'نقل', 'تصنيع', 'لوجستي', 'آلات',
+  ],
 }
 
 function matchSector(signalSector: string, filterKey: string): boolean {
   if (filterKey === 'all') return true
   const keywords = SECTOR_KEYWORDS[filterKey] || [filterKey.toLowerCase()]
   const s = signalSector?.toLowerCase() || ''
-  return keywords.some(kw => s.includes(kw))
+  return keywords.some(kw => s.includes(kw.toLowerCase()))
 }
 
 export default function Home() {
@@ -59,7 +78,6 @@ export default function Home() {
 
   useEffect(() => { fetchSignals() }, [fetchSignals])
 
-  // ✅ analyze يقبل signal اختياري من الـ card
   const analyze = async (ticker: string, signal?: string) => {
     if(!ticker.trim()) return
     setLoadStock(true); setStock(null); setTab('query')
@@ -70,7 +88,7 @@ export default function Home() {
         body: JSON.stringify({
           ticker: ticker.toUpperCase(),
           lang,
-          signal: signal || null // ✅ أرسل الـ signal من الـ card
+          signal: signal || null
         })
       })
       setStock(await r.json())
@@ -114,10 +132,19 @@ export default function Home() {
 
             {signals?.marketSummary&&(
               <div className="mbar">
-                {[['S&P 500',signals.marketSummary.sp500],['NASDAQ',signals.marketSummary.nasdaq],['VIX',signals.marketSummary.vix],[lang==='ar'?'المشاعر':'Sentiment',signals.marketSummary.sentiment]].map(([k,v])=>(
+                {[
+                  ['S&P 500', signals.marketSummary.sp500],
+                  ['NASDAQ',  signals.marketSummary.nasdaq],
+                  ['VIX',     signals.marketSummary.vix],
+                  [lang==='ar'?'المشاعر':'Sentiment', signals.marketSummary.sentiment]
+                ].map(([k,v])=>(
                   <div key={k} className="mi">
                     <span className="mk">{k}</span>
-                    <span className="mv" style={{color:k==='Sentiment'||k==='المشاعر'?sentCol(v):(v.startsWith?.('+'))?'#2EC98A':v.startsWith?.('-')?'#E85555':'inherit'}}>{v}</span>
+                    <span className="mv" style={{
+                      color: k==='Sentiment'||k==='المشاعر' ? sentCol(v) :
+                             v.startsWith?.('+') ? '#2EC98A' :
+                             v.startsWith?.('-') ? '#E85555' : 'inherit'
+                    }}>{v}</span>
                   </div>
                 ))}
                 <div className="mnote">{signals.marketSummary.note}</div>
@@ -126,13 +153,22 @@ export default function Home() {
 
             {signals&&(
               <div className="tpicks">
-                <div className="tp buy-tp"><span className="tpl">⚡ {lang==='ar'?'أفضل شراء':'Top Buy'}</span><span className="tpt" style={{color:'#2EC98A'}}>{signals.topBuy}</span></div>
-                <div className="tp sell-tp"><span className="tpl">⚡ {lang==='ar'?'أفضل بيع':'Top Sell'}</span><span className="tpt" style={{color:'#E85555'}}>{signals.topSell}</span></div>
-                <div className="tp watch-tp"><span className="tpl">👁 {lang==='ar'?'قائمة المراقبة':'Watchlist'}</span><span className="tpt" style={{color:'var(--gold)'}}>{signals.watchlist?.join(' · ')}</span></div>
+                <div className="tp buy-tp">
+                  <span className="tpl">⚡ {lang==='ar'?'أفضل شراء':'Top Buy'}</span>
+                  <span className="tpt" style={{color:'#2EC98A'}}>{signals.topBuy}</span>
+                </div>
+                <div className="tp sell-tp">
+                  <span className="tpl">⚡ {lang==='ar'?'أفضل بيع':'Top Sell'}</span>
+                  <span className="tpt" style={{color:'#E85555'}}>{signals.topSell}</span>
+                </div>
+                <div className="tp watch-tp">
+                  <span className="tpl">👁 {lang==='ar'?'قائمة المراقبة':'Watchlist'}</span>
+                  <span className="tpt" style={{color:'var(--gold)'}}>{signals.watchlist?.join(' · ')}</span>
+                </div>
               </div>
             )}
 
-            {/* ✅ فلتر القطاعات */}
+            {/* ✅ فلتر القطاعات مع دعم عربي */}
             {signals&&(
               <div className="sector-filter">
                 {SECTORS.map(s => {
@@ -153,7 +189,12 @@ export default function Home() {
               </div>
             )}
 
-            {loadSig&&<div className="loading"><div className="ring"/><div className="lmsg">{tx.loadSig}</div></div>}
+            {loadSig&&(
+              <div className="loading">
+                <div className="ring"/>
+                <div className="lmsg">{tx.loadSig}</div>
+              </div>
+            )}
 
             {!loadSig&&signals?.signals&&(
               <>
@@ -169,7 +210,7 @@ export default function Home() {
                         key={s.ticker}
                         s={s}
                         lang={lang}
-                        onClick={() => analyze(s.ticker, s.signal)} // ✅ أرسل signal
+                        onClick={() => analyze(s.ticker, s.signal)}
                       />
                     ))}
                   </div>
@@ -193,22 +234,43 @@ export default function Home() {
                   placeholder={tx.ph}
                 />
                 <button className="abtn" onClick={()=>analyze(search)} disabled={loadStock}>
-                  {loadStock?<span className="spin-sm"/>:<><BarChart2 size={13}/> {lang==='ar'?'تحليل':'Analyze'}</>}
+                  {loadStock
+                    ? <span className="spin-sm"/>
+                    : <><BarChart2 size={13}/> {lang==='ar'?'تحليل':'Analyze'}</>
+                  }
                 </button>
               </div>
               <div className="qchips">
-                {QUICK.map(t=><button key={t} className="qchip" onClick={()=>{setSearch(t);analyze(t)}}>{t}</button>)}
+                {QUICK.map(t=>(
+                  <button key={t} className="qchip" onClick={()=>{setSearch(t);analyze(t)}}>
+                    {t}
+                  </button>
+                ))}
               </div>
             </div>
-            {loadStock&&<div className="loading"><div className="ring"/><div className="lmsg">{tx.loadStock}</div></div>}
-            {!loadStock&&!stock&&<div className="empty"><BarChart2 size={44} color="var(--t3)"/><p>{tx.empty}</p></div>}
+            {loadStock&&(
+              <div className="loading">
+                <div className="ring"/>
+                <div className="lmsg">{tx.loadStock}</div>
+              </div>
+            )}
+            {!loadStock&&!stock&&(
+              <div className="empty">
+                <BarChart2 size={44} color="var(--t3)"/>
+                <p>{tx.empty}</p>
+              </div>
+            )}
           </div>
         )}
       </main>
 
-      {stock&&!loadStock&&<StockDetail data={stock} lang={lang} onClose={()=>setStock(null)}/>}
+      {stock&&!loadStock&&(
+        <StockDetail data={stock} lang={lang} onClose={()=>setStock(null)}/>
+      )}
 
-      <footer className="ftr"><div className="ftr-in">{tx.disc}</div></footer>
+      <footer className="ftr">
+        <div className="ftr-in">{tx.disc}</div>
+      </footer>
     </div>
   )
 }
