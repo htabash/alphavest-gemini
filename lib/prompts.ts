@@ -27,13 +27,36 @@ const EXCHANGE_MAP: Record<string, string> = {
 export function signalsPrompt(lang: string, priceContext?: string) {
   const ar = lang === 'ar'
   const prices = priceContext
-    ? `\nCURRENT REAL PRICES (use these EXACTLY for all calculations): ${priceContext}`
+    ? `\nCURRENT REAL PRICES (use these EXACTLY): ${priceContext}`
     : ''
 
-  return `You are a professional US stock market analyst for May 2026. Generate today's top 8 trading recommendations.
-${ar ? 'LANGUAGE: Write reasoning, catalyst, companyName, and note fields IN ARABIC. All other fields in English.' : 'LANGUAGE: All text in English.'}
+  const exampleNote = ar
+    ? 'تواصل الأسواق الأمريكية ارتفاعها في مايو 2026 مدعومةً بنتائج أرباح قوية وتراجع مؤشر VIX. يحافظ المستثمرون على تفاؤلهم رغم ترقبهم لقرارات الفيدرالي الأمريكي القادمة.'
+    : 'US markets continue their upward trend in May 2026, supported by strong earnings and low volatility. Investors remain optimistic ahead of the upcoming Fed meeting on interest rates.'
 
-Return ONLY valid JSON — no placeholders, no template text, generate real content:
+  const exampleReasoning = ar
+    ? 'اخترق السهم مقاومة 205 دولار بحجم تداول مرتفع يعادل ضعف المتوسط، مما يؤكد قوة الاتجاه الصعودي. مؤتمر المطورين القادم يمثل محفزاً قوياً لاستمرار الزخم خلال الأسبوعين المقبلين.'
+    : 'Stock broke above $205 resistance on 2x average volume confirming bullish momentum. Upcoming developer conference represents a strong catalyst for continuation over the next 2 weeks.'
+
+  const exampleCatalyst = ar
+    ? 'الإعلان عن نتائج الربع الأول وتوقعات إيجابية للربع القادم'
+    : 'Q1 earnings announcement with positive guidance for next quarter'
+
+  const exampleCompany = ar ? 'شركة نفيديا' : 'NVIDIA Corporation'
+
+  return `You are a professional US stock market analyst for May 2026.
+${ar ? 'LANGUAGE RULE: Write note, companyName, reasoning, catalyst IN ARABIC. All other fields in English.' : 'LANGUAGE: All text in English.'}
+
+CONTENT RULES — READ CAREFULLY:
+- Generate ORIGINAL real content for every field
+- The example values below show FORMAT only — replace with real content
+- note: write 2 original sentences about actual May 2026 US market
+- reasoning: mention specific price level and explain why to trade NOW
+- catalyst: one specific real catalyst for this stock
+- companyName: ${ar ? 'translate to Arabic' : 'use full English legal name'}
+- NEVER output instructions or template text as content
+
+Return ONLY valid JSON:
 {
   "date": "May 6, 2026",
   "marketSummary": {
@@ -41,93 +64,66 @@ Return ONLY valid JSON — no placeholders, no template text, generate real cont
     "nasdaq": "+1.2%",
     "sentiment": "${ar ? 'صعودي' : 'Bullish'}",
     "vix": "14.2",
-    "note": "${ar ? 'اكتب جملتين حقيقيتين عن وضع السوق الأمريكي في مايو 2026 بالعربية الفصحى' : 'Write 2 real sentences about US market conditions in May 2026'}"
+    "note": "${exampleNote}"
   },
   "signals": [
     {
-      "ticker": "REAL_TICKER",
-      "companyName": "${ar ? 'اكتب الاسم الكامل الحقيقي للشركة بالعربية' : 'Write the real full company name'}",
+      "ticker": "NVDA",
+      "companyName": "${exampleCompany}",
       "sector": "Technology",
-      "price": 196.50,
-      "priceChangePct": -0.96,
+      "price": 207.83,
+      "priceChangePct": 5.77,
       "signal": "strongBuy",
-      "confidence": 88,
-      "entry": "$193-198",
-      "stopLoss": "$185",
-      "target1": "$215",
-      "target2": "$235",
+      "confidence": 92,
+      "entry": "$202-210",
+      "stopLoss": "$195",
+      "target1": "$229",
+      "target2": "$245",
       "timeframe": "1-2 weeks",
-      "rsi": 52.4,
+      "rsi": 58.4,
       "macd": "Bullish crossover",
       "trend": "Uptrend",
-      "reasoning": "${ar ? 'اكتب جملتين حقيقيتين بالعربية تذكر فيهما مستوى سعري محدد وسبب التوصية الآن' : 'Write 2 real sentences mentioning a specific price level and why to trade NOW'}",
-      "catalyst": "${ar ? 'اكتب المحفز الرئيسي الحقيقي للسهم بالعربية' : 'Write the real key catalyst for this stock'}"
+      "reasoning": "${exampleReasoning}",
+      "catalyst": "${exampleCatalyst}"
     }
   ],
-  "topBuy": "BEST_BUY_TICKER",
-  "topSell": "BEST_SELL_TICKER",
-  "watchlist": ["TICKER1","TICKER2","TICKER3","TICKER4","TICKER5"]
+  "topBuy": "NVDA",
+  "topSell": "XOM",
+  "watchlist": ["AAPL","MSFT","GOOGL","JPM","CVX"]
 }
 
-SECTOR DISTRIBUTION — MANDATORY exactly 8 signals:
-- Technology (2 signals): NVDA, AAPL, MSFT, GOOGL, META, AMD, AMAT, PLTR, ARM, CRM, ADBE, CRWD, PANW
-- Financials (1 signal): JPM, GS, MS, V, MA, BAC, PYPL, COIN
-- Energy (1 signal): XOM, CVX, COP, SLB, EOG
-- Healthcare (1 signal): LLY, UNH, JNJ, ABBV, MRK, AMGN, REGN
-- Consumer Discretionary (1 signal): TSLA, AMZN, HD, MCD, SBUX, NKE, NFLX
-- Industrials (1 signal): BA, CAT, GE, HON, UPS, RTX
-- Other (1 signal): WMT, PG, KO, UBER, SHOP
+MANDATORY: Generate exactly 8 signals replacing the example above.
+
+SECTOR DISTRIBUTION:
+- Technology (2): NVDA,AAPL,MSFT,GOOGL,META,AMD,AMAT,PLTR,ARM,CRM,ADBE,CRWD,PANW
+- Financials (1): JPM,GS,MS,V,MA,BAC,PYPL,COIN
+- Energy (1): XOM,CVX,COP,SLB,EOG
+- Healthcare (1): LLY,UNH,JNJ,ABBV,MRK,AMGN,REGN
+- Consumer Discretionary (1): TSLA,AMZN,HD,MCD,SBUX,NKE,NFLX
+- Industrials (1): BA,CAT,GE,HON,UPS,RTX
+- Other (1): WMT,PG,KO,UBER,SHOP
 
 SIGNAL MIX: 4-5 buy/strongBuy, 1-2 sell/strongSell, 1-2 hold
 
-CRITICAL RULES:
-- NEVER use placeholder text like "اكتب..." or "Write..." — generate real content
-- NEVER repeat the same ticker twice in signals array
-- VARIETY: rotate different stocks each day
-- ALL price fields: real dollar numbers only — no formulas
-- Entry within 5% of current price
-- entry format: "$193-198"
+RULES:
+- NEVER repeat same ticker twice
+- sector: ALWAYS English — Technology/Financials/Energy/Healthcare/Consumer Discretionary/Industrials/Other
+- entry within 2-3% of current price
 - stopLoss: 3-6% below for buys, 3-6% above for sells
-- target1: 8-12% from current price
-- target2: 15-20% from current price
-- signal: strongBuy | buy | hold | sell | strongSell
-- confidence: integer 60-95
-- timeframe: "1-2 weeks" or "2-3 weeks"
+- target1: 8-12% from price, target2: 15-20% from price
 - sell/strongSell: entry ABOVE price, target BELOW price
+- signal: strongBuy|buy|hold|sell|strongSell
+- confidence: 60-95
+- ALL prices: real numbers only
 
-SECTOR RULES — CRITICAL:
-- sector field: ALWAYS in English — NEVER Arabic
-- NVDA/AAPL/MSFT/GOOGL/META/AMD/CRM/PLTR → "Technology"
-- JPM/GS/V/MA/BAC/COIN/PYPL → "Financials"
-- XOM/CVX/COP/SLB/EOG → "Energy"
-- LLY/UNH/JNJ/ABBV/MRK/AMGN → "Healthcare"
-- TSLA/AMZN/HD/MCD/NFLX/SBUX/NKE → "Consumer Discretionary"
-- BA/CAT/GE/HON/UPS/RTX → "Industrials"
-- WMT/PG/KO/UBER/SHOP → "Other"
-
-COMPANY NAMES — EXACT:
-- CVNA = Carvana Co.
-- COIN = Coinbase Global, Inc.
-- PLTR = Palantir Technologies Inc.
-- CRWD = CrowdStrike Holdings, Inc.
-- UBER = Uber Technologies, Inc.
-- SHOP = Shopify Inc.
-- TSLA = Tesla, Inc.
-- NVDA = NVIDIA Corporation
-
-${ar ? `ARABIC RULES:
-- note: write 2 real sentences in proper Arabic about May 2026 market
-- companyName: translate to Arabic (e.g. شركة آبل، شركة نفيديا)
-- reasoning: 2 sentences in Arabic mentioning specific price level
-- catalyst: one sentence in Arabic about the key catalyst
-- sentiment: use صعودي/هبوطي/محايد
-- DO NOT mix English words inside Arabic text
-- DO NOT use placeholder instructions as content` : ''}
-
-REASONING QUALITY:
-- BAD: "السهم يتمتع بأساسيات قوية" or "Stock has strong fundamentals"
-- GOOD: "اخترق NVDA مقاومة 205 دولار بحجم تداول مرتفع، مما يشير لاستمرار الزخم الصعودي"
-- Must mention specific price OR indicator OR recent news
+SECTOR MAP:
+- NVDA/AAPL/MSFT/GOOGL/META/AMD/CRM/PLTR → Technology
+- JPM/GS/V/MA/BAC/COIN/PYPL → Financials
+- XOM/CVX/COP/SLB/EOG → Energy
+- LLY/UNH/JNJ/ABBV/MRK → Healthcare
+- TSLA/AMZN/HD/MCD/NFLX → Consumer Discretionary
+- BA/CAT/GE/HON/UPS → Industrials
+- WMT/PG/KO/UBER/SHOP → Other
 ${prices}`
 }
 
@@ -141,52 +137,44 @@ export function analyzePrompt(ticker: string, lang: string, price?: number, sign
   const exchange = EXCHANGE_MAP[ticker] || 'NASDAQ'
 
   const signalHint = signal
-    ? `IMPORTANT: Signal is "${signal}".
-- sell/strongSell → BEARISH analysis, risks > rewards
-- buy/strongBuy → BULLISH analysis, opportunity exists
-- hold → NEUTRAL analysis, wait for direction
-- "signal" field in JSON MUST be: "${signal}"
-- All analysis must align with this signal`
+    ? `Signal is "${signal}". Analysis MUST align:
+- sell/strongSell → bearish outlook, risks > rewards
+- buy/strongBuy → bullish outlook, opportunity
+- hold → neutral, wait for direction
+- JSON "signal" field MUST be exactly: "${signal}"`
     : ''
 
-  const entryLow  = p ? Math.round(p * 0.97) : 190
-  const entryHigh = p ? Math.round(p * 1.01) : 199
-  const stopVal   = p ? Math.round(p * 0.94) : 184
-  const t1Val     = p ? Math.round(p * 1.10) : 215
-  const t2Val     = p ? Math.round(p * 1.18) : 231
-  const sma20     = p ? Math.round(p * 0.98) : 192
-  const sma50     = p ? Math.round(p * 0.95) : 185
-  const sma200    = p ? Math.round(p * 0.80) : 155
-  const bUpper    = p ? Math.round(p * 1.07) : 210
-  const bLower    = p ? Math.round(p * 0.93) : 180
-  const sup1      = p ? Math.round(p * 0.97) : 190
-  const sup2      = p ? Math.round(p * 0.94) : 185
-  const sup3      = p ? Math.round(p * 0.90) : 175
-  const res1      = p ? Math.round(p * 1.05) : 205
-  const res2      = p ? Math.round(p * 1.10) : 215
-  const w52High   = p ? Math.round(p * 1.25) : 245
-  const w52Low    = p ? Math.round(p * 0.60) : 118
+  const p0 = p || 200
+  const entryLow  = Math.round(p0 * 0.97)
+  const entryHigh = Math.round(p0 * 1.01)
+  const stopVal   = Math.round(p0 * 0.94)
+  const t1Val     = Math.round(p0 * 1.10)
+  const t2Val     = Math.round(p0 * 1.18)
+  const sma20     = Math.round(p0 * 0.98)
+  const sma50     = Math.round(p0 * 0.95)
+  const sma200    = Math.round(p0 * 0.80)
+  const bUpper    = Math.round(p0 * 1.07)
+  const bLower    = Math.round(p0 * 0.93)
+  const sup1      = Math.round(p0 * 0.97)
+  const sup2      = Math.round(p0 * 0.94)
+  const sup3      = Math.round(p0 * 0.90)
+  const res1      = Math.round(p0 * 1.05)
+  const res2      = Math.round(p0 * 1.10)
+  const w52High   = Math.round(p0 * 1.25)
+  const w52Low    = Math.round(p0 * 0.60)
 
   const isSell = signal?.toLowerCase().includes('sell')
   const isHold = signal?.toLowerCase().includes('hold')
 
   const entryStr = isSell
-    ? `$${p ? Math.round(p * 1.01) : entryLow}-${p ? Math.round(p * 1.03) : entryHigh}`
+    ? `$${Math.round(p0*1.01)}-${Math.round(p0*1.03)}`
     : isHold
-    ? `$${p ? Math.round(p * 0.98) : entryLow}-${p ? Math.round(p * 1.02) : entryHigh}`
+    ? `$${Math.round(p0*0.98)}-${Math.round(p0*1.02)}`
     : `$${entryLow}-${entryHigh}`
 
-  const stopStr = isSell
-    ? `$${p ? Math.round(p * 1.06) : 210}`
-    : `$${stopVal}`
-
-  const t1Str = isSell
-    ? `$${p ? Math.round(p * 0.90) : 175}`
-    : `$${t1Val}`
-
-  const t2Str = isSell
-    ? `$${p ? Math.round(p * 0.82) : 160}`
-    : `$${t2Val}`
+  const stopStr = isSell ? `$${Math.round(p0*1.06)}` : `$${stopVal}`
+  const t1Str   = isSell ? `$${Math.round(p0*0.90)}` : `$${t1Val}`
+  const t2Str   = isSell ? `$${Math.round(p0*0.82)}` : `$${t2Val}`
 
   const competitorMap: Record<string, string> = {
     NVDA:'AMD, INTC, QCOM', AAPL:'MSFT, GOOGL, DELL',
@@ -198,38 +186,36 @@ export function analyzePrompt(ticker: string, lang: string, price?: number, sign
     V:'MA, PYPL, AXP', MA:'V, PYPL, AXP',
     CRM:'MSFT, ORCL, SAP', COIN:'HOOD, SQ, MSTR',
     CVX:'XOM, COP, SLB', XOM:'CVX, COP, BP',
-    COP:'XOM, CVX, SLB', BA:'LMT, RTX, NOC',
-    LMT:'RTX, NOC, BA', JNJ:'PFE, ABBV, MRK',
-    LLY:'NVO, ABBV, MRK', UNH:'CVS, CI, HUM',
+    BA:'LMT, RTX, NOC', LLY:'NVO, ABBV, MRK',
     WMT:'TGT, COST, AMZN', HD:'LOW, WMT, TGT',
     AMAT:'LRCX, KLAC, ASML', PLTR:'PATH, AI, BBAI',
   }
-  const competitors = competitorMap[ticker] || `3 real direct competitors for ${ticker}`
+  const competitors = competitorMap[ticker] || `3 real competitors for ${ticker}`
 
-  return `You are a professional financial analyst. Analyze ${ticker} for May 2026.
-${ar ? 'Write description, analysis, news headlines, and companyName IN ARABIC. All other fields in English.' : 'All text in English.'}
+  return `Analyze ${ticker} for May 2026.
+${ar ? 'Write description, summary, bullish/bearish/catalysts, news headlines, companyName IN ARABIC. All other fields in English.' : 'All text in English.'}
 ${priceHint}
 ${signalHint}
 
-CRITICAL: Generate REAL content — no placeholder text. Return ONLY valid JSON:
+Return ONLY valid JSON with REAL content — no placeholder text:
 {
   "ticker": "${ticker}",
-  "companyName": "${ar ? `اسم ${ticker} الكامل بالعربية` : `Full legal name of ${ticker}`}",
-  "sector": "Technology",
-  "industry": "${ar ? `صناعة ${ticker} بالعربية` : `${ticker} industry`}",
+  "companyName": "${ar ? `الاسم العربي الكامل لـ ${ticker}` : `Full legal name of ${ticker}`}",
+  "sector": "correct sector in English",
+  "industry": "correct industry",
   "exchange": "${exchange}",
-  "description": "${ar ? `اكتب 3 جمل حقيقية عن ${ticker} بالعربية` : `Write 3 real sentences about ${ticker} business model`}",
-  "price": ${p || 0},
+  "description": "real 3-sentence description of ${ticker}",
+  "price": ${p0},
   "priceChange": 0,
   "priceChangePct": 0,
-  "open": ${p || 0},
-  "high": ${p ? Math.round(p * 1.02) : 0},
-  "low": ${p ? Math.round(p * 0.98) : 0},
+  "open": ${p0},
+  "high": ${Math.round(p0*1.02)},
+  "low": ${Math.round(p0*0.98)},
   "volume": "real volume",
   "avgVolume": "real avg volume",
   "week52High": ${w52High},
   "week52Low": ${w52Low},
-  "marketCap": "real market cap like $3.2T",
+  "marketCap": "real cap e.g. $3.2T",
   "beta": 1.2,
   "signal": "${signal || 'buy'}",
   "confidence": 80,
@@ -241,56 +227,53 @@ CRITICAL: Generate REAL content — no placeholder text. Return ONLY valid JSON:
   "score": 78,
   "scoreBreakdown": {"fundamental":75,"technical":82,"sentiment":78,"momentum":80},
   "fundamentals": {
-    "revenue": "real revenue","revenueGrowth": "real%","netIncome": "real net income",
-    "netMargin": "real%","eps": "real EPS","epsGrowth": "real%",
-    "pe": 30,"forwardPE": 25,"peg": 0.5,"ebitda": "real EBITDA",
-    "freeCashFlow": "real FCF","debtEquity": 0.5,"currentRatio": 2.0,
-    "roe": "real%","roa": "real%","dividendYield": "real% or N/A"
+    "revenue":"real revenue","revenueGrowth":"real%","netIncome":"real",
+    "netMargin":"real%","eps":"real","epsGrowth":"real%",
+    "pe":30,"forwardPE":25,"peg":0.5,"ebitda":"real",
+    "freeCashFlow":"real","debtEquity":0.5,"currentRatio":2.0,
+    "roe":"real%","roa":"real%","dividendYield":"real% or N/A"
   },
   "technical": {
-    "trend": "${isSell ? 'Downtrend' : isHold ? 'Sideways' : 'Uptrend'}",
-    "rsi": ${isSell ? 72 : isHold ? 52 : 48},
-    "rsiSignal": "${isSell ? 'Overbought' : 'Neutral'}",
-    "macd": "${isSell ? 'Bearish' : 'Bullish'}",
-    "macdValue": 2.0,
-    "sma20": ${sma20},"sma50": ${sma50},"sma200": ${sma200},
-    "bollingerUpper": ${bUpper},"bollingerLower": ${bLower},
-    "support1": ${sup1},"support2": ${sup2},"support3": ${sup3},
-    "resistance1": ${res1},"resistance2": ${res2},
-    "atr": 5.0,"obv": "${isSell ? 'Falling' : 'Rising'}"
+    "trend":"${isSell?'Downtrend':isHold?'Sideways':'Uptrend'}",
+    "rsi":${isSell?72:isHold?52:48},
+    "rsiSignal":"${isSell?'Overbought':'Neutral'}",
+    "macd":"${isSell?'Bearish':'Bullish'}","macdValue":2.0,
+    "sma20":${sma20},"sma50":${sma50},"sma200":${sma200},
+    "bollingerUpper":${bUpper},"bollingerLower":${bLower},
+    "support1":${sup1},"support2":${sup2},"support3":${sup3},
+    "resistance1":${res1},"resistance2":${res2},
+    "atr":5.0,"obv":"${isSell?'Falling':'Rising'}"
   },
   "analysis": {
-    "summary": "${ar ? `اكتب 4 جمل حقيقية عن ${ticker} تتوافق مع إشارة ${signal || 'الشراء'} في مايو 2026` : `Write 4 real sentences about ${ticker} aligned with ${signal || 'buy'} signal in May 2026`}",
-    "bullish": ["${ar?'عامل صعودي حقيقي 1':'real bullish factor 1'}","${ar?'عامل صعودي حقيقي 2':'real bullish factor 2'}","${ar?'عامل صعودي حقيقي 3':'real bullish factor 3'}"],
-    "bearish": ["${ar?'مخاطرة حقيقية 1':'real risk 1'}","${ar?'مخاطرة حقيقية 2':'real risk 2'}","${ar?'مخاطرة حقيقية 3':'real risk 3'}"],
-    "catalysts": ["${ar?'محفز حقيقي 1':'real catalyst 1'}","${ar?'محفز حقيقي 2':'real catalyst 2'}"]
+    "summary":"real 4-sentence analysis of ${ticker} for ${signal||'buy'} signal",
+    "bullish":["real bullish factor 1","real bullish factor 2","real bullish factor 3"],
+    "bearish":["real risk 1","real risk 2","real risk 3"],
+    "catalysts":["real catalyst 1","real catalyst 2"]
   },
   "news": [
-    {"headline":"${ar?`خبر حقيقي 1 عن ${ticker}`:`Real headline 1 about ${ticker}`}","source":"Reuters","time":"2h ago","sentiment":"${isSell?'negative':'positive'}"},
-    {"headline":"${ar?`خبر حقيقي 2 مختلف عن ${ticker}`:`Real different headline 2 about ${ticker}`}","source":"Bloomberg","time":"5h ago","sentiment":"neutral"},
-    {"headline":"${ar?`خبر حقيقي 3 عن ${ticker}`:`Real headline 3 about ${ticker}`}","source":"WSJ","time":"1d ago","sentiment":"${isSell?'negative':'positive'}"},
-    {"headline":"${ar?`خبر حقيقي 4 عن مخاطر ${ticker}`:`Real headline 4 about ${ticker} risks`}","source":"CNBC","time":"2d ago","sentiment":"${isSell?'negative':'neutral'}"}
+    {"headline":"real unique headline 1 about ${ticker}","source":"Reuters","time":"2h ago","sentiment":"${isSell?'negative':'positive'}"},
+    {"headline":"real different headline 2 about ${ticker}","source":"Bloomberg","time":"5h ago","sentiment":"neutral"},
+    {"headline":"real headline 3 about ${ticker}","source":"WSJ","time":"1d ago","sentiment":"positive"},
+    {"headline":"real headline 4 about ${ticker} risk","source":"CNBC","time":"2d ago","sentiment":"negative"}
   ],
   "analystRatings": {
-    "buy": ${isSell ? 8 : 25},"hold": ${isSell ? 10 : 8},"sell": ${isSell ? 20 : 2},
-    "avgTarget": "${isSell ? t1Str : '$'+t1Val}",
-    "highTarget": "${isSell ? t2Str : '$'+t2Val}",
-    "lowTarget": "${isSell ? stopStr : '$'+stopVal}",
-    "consensus": "${isSell ? (ar?'بيع':'Sell') : isHold ? (ar?'احتفاظ':'Hold') : (ar?'شراء قوي':'Strong Buy')}"
+    "buy":${isSell?8:25},"hold":${isSell?10:8},"sell":${isSell?20:2},
+    "avgTarget":"${isSell?t1Str:'$'+t1Val}",
+    "highTarget":"${isSell?t2Str:'$'+t2Val}",
+    "lowTarget":"${isSell?stopStr:'$'+stopVal}",
+    "consensus":"${isSell?(ar?'بيع':'Sell'):isHold?(ar?'احتفاظ':'Hold'):(ar?'شراء قوي':'Strong Buy')}"
   },
   "competitors": [
-    {"ticker":"C1","name":"real competitor 1 name","price":100,"marketCap":"$100B","pe":30,"signal":"hold","ytd":"-5%"},
-    {"ticker":"C2","name":"real competitor 2 name","price":200,"marketCap":"$200B","pe":25,"signal":"buy","ytd":"+10%"},
-    {"ticker":"C3","name":"real competitor 3 name","price":50,"marketCap":"$50B","pe":null,"signal":"sell","ytd":"-15%"}
+    {"ticker":"C1","name":"real name","price":100,"marketCap":"$100B","pe":30,"signal":"hold","ytd":"-5%"},
+    {"ticker":"C2","name":"real name","price":200,"marketCap":"$200B","pe":25,"signal":"buy","ytd":"+10%"},
+    {"ticker":"C3","name":"real name","price":50,"marketCap":"$50B","pe":null,"signal":"sell","ytd":"-15%"}
   ]
 }
-FINAL RULES:
-- Use real competitors: ${competitors}
-- marketCap: string like "$175B" NEVER raw numbers
-- All headlines unique and specific to ${ticker}
-- signal MUST be: "${signal || 'buy'}"
+RULES:
+- Real competitors for ${ticker}: ${competitors}
+- marketCap: string like "$175B" never raw numbers
+- signal MUST be: "${signal||'buy'}"
 - exchange MUST be: "${exchange}"
-- sector MUST be in English
-- Use REAL fundamental data for ${ticker}
-- NEVER use placeholder instructions as content in the output`
+- sector in English only
+- Use REAL data for ${ticker}`
 }
