@@ -22,7 +22,6 @@ const SECTORS = [
   { key: 'Industrials', en: 'Industrial', ar: 'صناعة' },
 ]
 
-// ✅ خريطة الكلمات المفتاحية لكل قطاع
 const SECTOR_KEYWORDS: Record<string, string[]> = {
   'Technology':  ['tech', 'software', 'semiconductor', 'it ', 'internet', 'cloud', 'ai', 'data', 'cyber', 'saas'],
   'Financials':  ['financ', 'bank', 'insurance', 'invest', 'capital', 'asset', 'payment', 'exchange'],
@@ -60,14 +59,19 @@ export default function Home() {
 
   useEffect(() => { fetchSignals() }, [fetchSignals])
 
-  const analyze = async (ticker: string) => {
+  // ✅ analyze يقبل signal اختياري من الـ card
+  const analyze = async (ticker: string, signal?: string) => {
     if(!ticker.trim()) return
     setLoadStock(true); setStock(null); setTab('query')
     try {
       const r = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker: ticker.toUpperCase(), lang })
+        body: JSON.stringify({
+          ticker: ticker.toUpperCase(),
+          lang,
+          signal: signal || null // ✅ أرسل الـ signal من الـ card
+        })
       })
       setStock(await r.json())
     } catch(e){ console.error(e) } finally { setLoadStock(false) }
@@ -77,12 +81,10 @@ export default function Home() {
     s==='Bullish'||s==='صعودي' ? '#2EC98A' :
     s==='Bearish'||s==='هبوطي' ? '#E85555' : '#E8A630'
 
-  // ✅ فلترة محسّنة
   const filteredSignals = (signals?.signals || []).filter((s: TradeSignal) =>
     matchSector(s.sector, sector)
   )
 
-  // ✅ عداد محسّن لكل قطاع
   const sectorCount = (key: string) =>
     (signals?.signals || []).filter((s: TradeSignal) => matchSector(s.sector, key)).length
 
@@ -130,7 +132,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* ✅ فلتر القطاعات مع عداد محسّن */}
+            {/* ✅ فلتر القطاعات */}
             {signals&&(
               <div className="sector-filter">
                 {SECTORS.map(s => {
@@ -163,7 +165,12 @@ export default function Home() {
                 ) : (
                   <div className="sgrid">
                     {filteredSignals.map(s => (
-                      <SignalCard key={s.ticker} s={s} lang={lang} onClick={() => analyze(s.ticker)}/>
+                      <SignalCard
+                        key={s.ticker}
+                        s={s}
+                        lang={lang}
+                        onClick={() => analyze(s.ticker, s.signal)} // ✅ أرسل signal
+                      />
                     ))}
                   </div>
                 )}
