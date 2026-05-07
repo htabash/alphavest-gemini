@@ -149,7 +149,6 @@ export function analyzePrompt(ticker: string, lang: string, price?: number, sign
     AMZN: 'MSFT, GOOGL, WMT',
     META: 'GOOGL, SNAP, PINS',
     GOOGL: 'MSFT, META, AMZN',
-    JPM: 'BAC, WFC, GS',
     AMD: 'NVDA, INTC, QCOM',
     NFLX: 'DIS, PARA, WBD',
     GS: 'MS, JPM, BAC',
