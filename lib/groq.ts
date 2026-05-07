@@ -3,7 +3,7 @@ import Groq from 'groq-sdk'
 export async function generateJSON(prompt: string): Promise<unknown> {
   const client = new Groq({ apiKey: process.env.GROQ_API_KEY })
   const completion = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile', // ✅ نموذج أقوى وأدق
+   model: 'llama-3.1-8b-instant', // ✅ نموذج أقوى وأدق
     messages: [
       {
         role: 'system',
@@ -12,7 +12,7 @@ export async function generateJSON(prompt: string): Promise<unknown> {
       { role: 'user', content: prompt }
     ],
     temperature: 0.6,
-    max_tokens: 8000, // ✅ كافٍ لـ 16 توصية
+    max_tokens: 6000, // ✅ كافٍ لـ 16 توصية
   })
 
   const text = completion.choices[0]?.message?.content || '{}'
