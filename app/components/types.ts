@@ -43,6 +43,10 @@ export interface Position {
   notes?: string
 }
 
+export interface PortfolioState {
+  positions: Position[]
+}
+
 export const SIG: Record<Signal,{en:string;ar:string;color:string;bg:string;border:string}> = {
   strongBuy:  {en:'STRONG BUY',  ar:'شراء قوي', color:'#2EC98A',bg:'rgba(46,201,138,.13)', border:'#145C3C'},
   buy:        {en:'BUY',         ar:'شراء',      color:'#2EC98A',bg:'rgba(46,201,138,.13)', border:'#145C3C'},
