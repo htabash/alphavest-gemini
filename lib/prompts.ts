@@ -84,12 +84,22 @@ REASONING RULES:
 ${prices}`
 }
 
-export function analyzePrompt(ticker: string, lang: string, price?: number) {
+export function analyzePrompt(ticker: string, lang: string, price?: number, signal?: string) {
   const ar = lang === 'ar'
   const p = price && price > 0 ? price : null
   const priceHint = p
     ? `Current real market price: $${p}. Base ALL price levels on this exact number.`
     : `Use the real current May 2026 market price for ${ticker}.`
+
+  // ✅ Signal hint للـ AI
+  const signalHint = signal
+    ? `IMPORTANT: This stock has been identified as a "${signal}" signal.
+- If signal is "sell" or "strongSell": analysis must reflect BEARISH outlook, risks outweigh rewards
+- If signal is "buy" or "strongBuy": analysis must reflect BULLISH outlook, opportunity exists
+- If signal is "hold": analysis must reflect NEUTRAL outlook, wait for clearer direction
+- Your "signal" field in JSON MUST be exactly: "${signal}"
+- Your analysis summary, bullish/bearish factors must align with this signal`
+    : ''
 
   const entryLow  = p ? Math.round(p * 0.97) : '[price*0.97]'
   const entryHigh = p ? Math.round(p * 1.01) : '[price*1.01]'
@@ -109,6 +119,28 @@ export function analyzePrompt(ticker: string, lang: string, price?: number) {
   const w52High   = p ? Math.round(p * 1.25) : '[estimate]'
   const w52Low    = p ? Math.round(p * 0.60) : '[estimate]'
 
+  // ✅ Entry/Stop/Target تعتمد على الـ signal
+  const isSell = signal?.toLowerCase().includes('sell')
+  const isHold = signal?.toLowerCase().includes('hold')
+
+  const entryStr = isSell
+    ? `$${p ? Math.round(p * 1.01) : entryLow}-${p ? Math.round(p * 1.03) : entryHigh}`
+    : isHold
+    ? `$${p ? Math.round(p * 0.98) : entryLow}-${p ? Math.round(p * 1.02) : entryHigh}`
+    : `$${entryLow}-${entryHigh}`
+
+  const stopStr = isSell
+    ? `$${p ? Math.round(p * 1.06) : '[price*1.06]'}`
+    : `$${stopVal}`
+
+  const t1Str = isSell
+    ? `$${p ? Math.round(p * 0.90) : '[price*0.90]'}`
+    : `$${t1Val}`
+
+  const t2Str = isSell
+    ? `$${p ? Math.round(p * 0.82) : '[price*0.82]'}`
+    : `$${t2Val}`
+
   const competitorMap: Record<string, string> = {
     NVDA: 'AMD, INTC, QCOM',
     AAPL: 'MSFT, GOOGL, DELL',
@@ -125,12 +157,19 @@ export function analyzePrompt(ticker: string, lang: string, price?: number) {
     MA: 'V, PYPL, AXP',
     CRM: 'MSFT, ORCL, SAP',
     COIN: 'HOOD, SQ, MSTR',
+    CVX: 'XOM, COP, SLB',
+    XOM: 'CVX, COP, BP',
+    BA: 'LMT, RTX, NOC',
+    JNJ: 'PFE, ABBV, MRK',
+    JPM: 'BAC, WFC, C',
   }
   const competitors = competitorMap[ticker] || `3 real direct competitors for ${ticker}`
 
   return `You are a professional financial analyst. Analyze ${ticker}.
 ${ar ? 'ALL text fields must be in Arabic.' : 'All text in English.'}
 ${priceHint}
+${signalHint}
+
 Return ONLY valid JSON:
 {
   "ticker": "${ticker}",
@@ -151,12 +190,12 @@ Return ONLY valid JSON:
   "week52Low": ${w52Low},
   "marketCap": "real cap like $2.1T",
   "beta": 1.2,
-  "signal": "buy",
+  "signal": "${signal || 'buy'}",
   "confidence": 80,
-  "entry": "$${entryLow}-${entryHigh}",
-  "stopLoss": "$${stopVal}",
-  "target1": "$${t1Val}",
-  "target2": "$${t2Val}",
+  "entry": "${entryStr}",
+  "stopLoss": "${stopStr}",
+  "target1": "${t1Str}",
+  "target2": "${t2Str}",
   "timeframe": "2-4 weeks",
   "score": 78,
   "scoreBreakdown": {"fundamental":75,"technical":82,"sentiment":78,"momentum":80},
@@ -168,30 +207,34 @@ Return ONLY valid JSON:
     "roe": "real%","roa": "real%","dividendYield": "real% or N/A"
   },
   "technical": {
-    "trend": "Uptrend","rsi": 52,"rsiSignal": "Neutral",
-    "macd": "Bullish","macdValue": 2.0,
+    "trend": "${isSell ? 'Downtrend' : isHold ? 'Sideways' : 'Uptrend'}",
+    "rsi": ${isSell ? 72 : isHold ? 52 : 48},
+    "rsiSignal": "${isSell ? 'Overbought' : 'Neutral'}",
+    "macd": "${isSell ? 'Bearish' : 'Bullish'}","macdValue": 2.0,
     "sma20": ${sma20},"sma50": ${sma50},"sma200": ${sma200},
     "bollingerUpper": ${bUpper},"bollingerLower": ${bLower},
     "support1": ${sup1},"support2": ${sup2},"support3": ${sup3},
     "resistance1": ${res1},"resistance2": ${res2},
-    "atr": 5.0,"obv": "Rising"
+    "atr": 5.0,"obv": "${isSell ? 'Falling' : 'Rising'}"
   },
   "analysis": {
-    "summary": "4-sentence thesis with May 2026 catalysts.",
-    "bullish": ["factor 1","factor 2","factor 3","factor 4"],
-    "bearish": ["risk 1","risk 2","risk 3"],
-    "catalysts": ["catalyst 1","catalyst 2"]
+    "summary": "4-sentence thesis aligned with ${signal || 'buy'} signal for ${ticker} with May 2026 context.",
+    "bullish": ${isSell ? '["Minor support exists","Oversold bounce possible","Long-term value"]' : '["factor 1","factor 2","factor 3","factor 4"]'},
+    "bearish": ${isSell ? '["Primary risk driving sell signal","Second major risk","Third concern"]' : '["risk 1","risk 2","risk 3"]'},
+    "catalysts": ["catalyst 1 aligned with signal","catalyst 2"]
   },
   "news": [
-    {"headline":"Unique headline 1 for ${ticker}","source":"Reuters","time":"2h ago","sentiment":"positive"},
+    {"headline":"Unique headline 1 for ${ticker}","source":"Reuters","time":"2h ago","sentiment":"${isSell ? 'negative' : 'positive'}"},
     {"headline":"Unique headline 2 for ${ticker}","source":"Bloomberg","time":"5h ago","sentiment":"neutral"},
-    {"headline":"Unique headline 3 for ${ticker}","source":"WSJ","time":"1d ago","sentiment":"positive"},
-    {"headline":"Unique headline 4 for ${ticker}","source":"CNBC","time":"2d ago","sentiment":"negative"}
+    {"headline":"Unique headline 3 for ${ticker}","source":"WSJ","time":"1d ago","sentiment":"${isSell ? 'negative' : 'positive'}"},
+    {"headline":"Unique headline 4 for ${ticker}","source":"CNBC","time":"2d ago","sentiment":"${isSell ? 'negative' : 'neutral'}"}
   ],
   "analystRatings": {
-    "buy": 25,"hold": 8,"sell": 2,
-    "avgTarget": "$${t1Val}","highTarget": "$${t2Val}","lowTarget": "$${stopVal}",
-    "consensus": "Strong Buy"
+    "buy": ${isSell ? 8 : 25},"hold": ${isSell ? 10 : 8},"sell": ${isSell ? 20 : 2},
+    "avgTarget": "${isSell ? t1Str : '$' + t1Val}",
+    "highTarget": "${isSell ? t2Str : '$' + t2Val}",
+    "lowTarget": "${isSell ? stopStr : '$' + stopVal}",
+    "consensus": "${isSell ? 'Sell' : isHold ? 'Hold' : 'Strong Buy'}"
   },
   "competitors": [
     {"ticker":"C1","name":"Name 1","price":100,"marketCap":"$100B","pe":30,"signal":"hold","ytd":"-5%"},
@@ -203,6 +246,7 @@ RULES:
 - Use real competitors: ${competitors}
 - marketCap as string like "$175B" never raw numbers
 - All news headlines unique and specific to ${ticker}
-- signal: strongBuy|buy|hold|sell|strongSell
-- Use REAL fundamental data for ${ticker}`
+- signal field MUST be exactly: "${signal || 'buy'}"
+- Use REAL fundamental data for ${ticker}
+- Analysis must be consistent with the ${signal || 'buy'} signal`
 }
