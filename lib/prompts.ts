@@ -1,3 +1,30 @@
+// ✅ خريطة الـ Exchange الحقيقي لكل سهم
+const EXCHANGE_MAP: Record<string, string> = {
+  NVDA:'NASDAQ', AAPL:'NASDAQ', MSFT:'NASDAQ', META:'NASDAQ',
+  GOOGL:'NASDAQ', AMZN:'NASDAQ', TSLA:'NASDAQ', AMD:'NASDAQ',
+  INTC:'NASDAQ', QCOM:'NASDAQ', PLTR:'NASDAQ', ARM:'NASDAQ',
+  AVGO:'NASDAQ', MU:'NASDAQ', AMAT:'NASDAQ', LRCX:'NASDAQ',
+  KLAC:'NASDAQ', MRVL:'NASDAQ', CRM:'NYSE', ORCL:'NYSE',
+  ADBE:'NASDAQ', NOW:'NYSE', INTU:'NASDAQ', DDOG:'NASDAQ',
+  SNOW:'NYSE', ZS:'NASDAQ', CRWD:'NASDAQ', PANW:'NASDAQ',
+  NET:'NYSE', SHOP:'NYSE', UBER:'NYSE', COIN:'NASDAQ',
+  SQ:'NYSE', PYPL:'NASDAQ', JPM:'NYSE', GS:'NYSE',
+  MS:'NYSE', BAC:'NYSE', WFC:'NYSE', V:'NYSE', MA:'NYSE',
+  AXP:'NYSE', BLK:'NYSE', C:'NYSE', COF:'NYSE', SCHW:'NYSE',
+  XOM:'NYSE', CVX:'NYSE', COP:'NYSE', SLB:'NYSE', EOG:'NYSE',
+  MPC:'NYSE', PSX:'NYSE', VLO:'NYSE', OXY:'NYSE',
+  LLY:'NYSE', UNH:'NYSE', JNJ:'NYSE', ABBV:'NYSE', MRK:'NYSE',
+  PFE:'NYSE', TMO:'NYSE', ABT:'NYSE', AMGN:'NASDAQ', GILD:'NASDAQ',
+  ISRG:'NASDAQ', VRTX:'NASDAQ', REGN:'NASDAQ',
+  WMT:'NYSE', COST:'NASDAQ', TGT:'NYSE', HD:'NYSE', LOW:'NYSE',
+  MCD:'NYSE', SBUX:'NASDAQ', NKE:'NYSE', DIS:'NYSE', NFLX:'NASDAQ',
+  PG:'NYSE', KO:'NYSE', PEP:'NASDAQ',
+  BA:'NYSE', CAT:'NYSE', DE:'NYSE', GE:'NYSE', HON:'NASDAQ',
+  UPS:'NYSE', FDX:'NYSE', RTX:'NYSE', LMT:'NYSE',
+  RIVN:'NASDAQ', SOFI:'NASDAQ', HOOD:'NASDAQ', RBLX:'NYSE',
+  ABNB:'NASDAQ', DASH:'NYSE', CVNA:'NYSE', DKNG:'NASDAQ',
+}
+
 export function signalsPrompt(lang: string, priceContext?: string) {
   const ar = lang === 'ar'
   const prices = priceContext
@@ -91,14 +118,17 @@ export function analyzePrompt(ticker: string, lang: string, price?: number, sign
     ? `Current real market price: $${p}. Base ALL price levels on this exact number.`
     : `Use the real current May 2026 market price for ${ticker}.`
 
-  // ✅ Signal hint للـ AI
+  // ✅ Exchange الحقيقي
+  const exchange = EXCHANGE_MAP[ticker] || 'NASDAQ'
+
+  // ✅ Signal hint
   const signalHint = signal
     ? `IMPORTANT: This stock has been identified as a "${signal}" signal.
 - If signal is "sell" or "strongSell": analysis must reflect BEARISH outlook, risks outweigh rewards
 - If signal is "buy" or "strongBuy": analysis must reflect BULLISH outlook, opportunity exists
 - If signal is "hold": analysis must reflect NEUTRAL outlook, wait for clearer direction
 - Your "signal" field in JSON MUST be exactly: "${signal}"
-- Your analysis summary, bullish/bearish factors must align with this signal`
+- Your analysis summary and factors must align with this signal`
     : ''
 
   const entryLow  = p ? Math.round(p * 0.97) : '[price*0.97]'
@@ -119,7 +149,6 @@ export function analyzePrompt(ticker: string, lang: string, price?: number, sign
   const w52High   = p ? Math.round(p * 1.25) : '[estimate]'
   const w52Low    = p ? Math.round(p * 0.60) : '[estimate]'
 
-  // ✅ Entry/Stop/Target تعتمد على الـ signal
   const isSell = signal?.toLowerCase().includes('sell')
   const isHold = signal?.toLowerCase().includes('hold')
 
@@ -149,18 +178,27 @@ export function analyzePrompt(ticker: string, lang: string, price?: number, sign
     AMZN: 'MSFT, GOOGL, WMT',
     META: 'GOOGL, SNAP, PINS',
     GOOGL: 'MSFT, META, AMZN',
+    JPM: 'BAC, WFC, C',
     AMD: 'NVDA, INTC, QCOM',
     NFLX: 'DIS, PARA, WBD',
     GS: 'MS, JPM, BAC',
+    MS: 'GS, JPM, BAC',
     V: 'MA, PYPL, AXP',
     MA: 'V, PYPL, AXP',
     CRM: 'MSFT, ORCL, SAP',
     COIN: 'HOOD, SQ, MSTR',
     CVX: 'XOM, COP, SLB',
     XOM: 'CVX, COP, BP',
+    COP: 'XOM, CVX, SLB',
     BA: 'LMT, RTX, NOC',
+    LMT: 'RTX, NOC, BA',
     JNJ: 'PFE, ABBV, MRK',
-    JPM: 'BAC, WFC, C',
+    LLY: 'NVO, ABBV, MRK',
+    UNH: 'CVS, CI, HUM',
+    WMT: 'TGT, COST, AMZN',
+    HD: 'LOW, WMT, TGT',
+    AMAT: 'LRCX, KLAC, ASML',
+    PLTR: 'PATH, AI, BBAI',
   }
   const competitors = competitorMap[ticker] || `3 real direct competitors for ${ticker}`
 
@@ -175,7 +213,7 @@ Return ONLY valid JSON:
   "companyName": "Full legal name",
   "sector": "sector",
   "industry": "industry",
-  "exchange": "NASDAQ",
+  "exchange": "${exchange}",
   "description": "3-sentence business description.",
   "price": ${p || 0},
   "priceChange": 0,
@@ -246,6 +284,7 @@ RULES:
 - marketCap as string like "$175B" never raw numbers
 - All news headlines unique and specific to ${ticker}
 - signal field MUST be exactly: "${signal || 'buy'}"
+- exchange field MUST be exactly: "${exchange}"
 - Use REAL fundamental data for ${ticker}
 - Analysis must be consistent with the ${signal || 'buy'} signal`
 }
