@@ -9,7 +9,6 @@ const SENT: Record<string,{cls:string;en:string;ar:string}> = {
   neutral:{cls:'nb-neu',en:'Neutral',ar:'محايد'},
 }
 
-// ✅ ترجمة Score Breakdown
 const SCORE_LABELS: Record<string,{en:string;ar:string}> = {
   fundamental: {en:'Fundamental', ar:'الأساسيات'},
   technical:   {en:'Technical',   ar:'الفني'},
@@ -17,7 +16,6 @@ const SCORE_LABELS: Record<string,{en:string;ar:string}> = {
   momentum:    {en:'Momentum',    ar:'الزخم'},
 }
 
-// ✅ تنسيق Market Cap
 function fmtCap(v: unknown): string {
   if (typeof v === 'string' && v.includes('$')) return v
   const n = typeof v === 'number' ? v : parseFloat(String(v))
@@ -65,9 +63,13 @@ export default function StockDetail({data,lang,onClose}:{data:StockData;lang:Lan
 
         {/* HEADER */}
         <div className="dhead">
-          <div style={{flex:1,minWidth:0}}>
-            <div className="dsym">{data.ticker} · {data.exchange} · {data.sector}</div>
-            <div className="dname" style={{wordBreak:'break-word'}}>{data.companyName}</div>
+          <div style={{flex:1,minWidth:0,overflow:'hidden'}}>
+            {/* ✅ ticker و exchange في سطر — sector في سطر منفصل */}
+            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+              <span className="dsym">{data.ticker} · {data.exchange}</span>
+              <span style={{fontSize:10,color:'var(--t3)',fontFamily:'monospace'}}>{data.sector}</span>
+            </div>
+            <div className="dname" style={{wordBreak:'break-word',marginTop:4}}>{data.companyName}</div>
             <div className="dtags">
               <span className="tag">{data.industry}</span>
               <span className="tag">{fmtCap(data.marketCap)}</span>
@@ -168,13 +170,13 @@ export default function StockDetail({data,lang,onClose}:{data:StockData;lang:Lan
           </div>
           <div className="dcard">
             <div className="clbl">{T('Day Stats','إحصائيات اليوم')}</div>
-            <Row k={T('Open','الافتتاح')} v={`$${data.open}`}/>
-            <Row k={T('High','الأعلى')} v={`$${data.high}`}/>
-            <Row k={T('Low','الأدنى')} v={`$${data.low}`}/>
-            <Row k={T('Volume','الحجم')} v={data.volume}/>
-            <Row k={T('Avg Volume','متوسط الحجم')} v={data.avgVolume}/>
-            <Row k={T('52W High','أعلى 52 أسبوع')} v={`$${data.week52High}`}/>
-            <Row k={T('52W Low','أدنى 52 أسبوع')} v={`$${data.week52Low}`}/>
+            <Row k={T('Open','الافتتاح')}           v={`$${data.open}`}/>
+            <Row k={T('High','الأعلى')}              v={`$${data.high}`}/>
+            <Row k={T('Low','الأدنى')}               v={`$${data.low}`}/>
+            <Row k={T('Volume','الحجم')}             v={data.volume}/>
+            <Row k={T('Avg Volume','متوسط الحجم')}   v={data.avgVolume}/>
+            <Row k={T('52W High','أعلى 52 أسبوع')}  v={`$${data.week52High}`}/>
+            <Row k={T('52W Low','أدنى 52 أسبوع')}   v={`$${data.week52Low}`}/>
           </div>
         </div>
 
@@ -182,25 +184,25 @@ export default function StockDetail({data,lang,onClose}:{data:StockData;lang:Lan
         <div className="grid2">
           <div className="dcard">
             <div className="clbl">{T('Fundamentals','الأساسيات')}</div>
-            <Row k={T('Revenue','الإيرادات')}       v={str(fm.revenue)}      sub={str(fm.revenueGrowth)}/>
-            <Row k={T('Net Income','صافي الربح')}   v={str(fm.netIncome)}    sub={str(fm.netMargin)}/>
-            <Row k={T('EPS','ربح السهم')}           v={str(fm.eps)}          sub={str(fm.epsGrowth)}/>
-            <Row k={T('P/E','مكرر الأرباح')}        v={str(fm.pe)}           sub={`Fwd ${str(fm.forwardPE)}`}/>
-            <Row k="EBITDA"                          v={str(fm.ebitda)}/>
+            <Row k={T('Revenue','الإيرادات')}            v={str(fm.revenue)}      sub={str(fm.revenueGrowth)}/>
+            <Row k={T('Net Income','صافي الربح')}        v={str(fm.netIncome)}    sub={str(fm.netMargin)}/>
+            <Row k={T('EPS','ربح السهم')}                v={str(fm.eps)}          sub={str(fm.epsGrowth)}/>
+            <Row k={T('P/E','مكرر الأرباح')}             v={str(fm.pe)}           sub={`Fwd ${str(fm.forwardPE)}`}/>
+            <Row k="EBITDA"                               v={str(fm.ebitda)}/>
             <Row k={T('Free Cash Flow','التدفق النقدي')} v={str(fm.freeCashFlow)}/>
-            <Row k={T('Debt/Equity','الدين/حقوق')}  v={str(fm.debtEquity)}/>
-            <Row k={T('ROE','العائد على حقوق')}     v={str(fm.roe)}/>
+            <Row k={T('Debt/Equity','الدين/حقوق')}       v={str(fm.debtEquity)}/>
+            <Row k={T('ROE','العائد على حقوق')}          v={str(fm.roe)}/>
           </div>
           <div className="dcard">
             <div className="clbl">{T('Technical','الفني')}</div>
-            <Row k={T('Trend','الاتجاه')}           v={str(tc.trend)}        color="#2EC98A"/>
-            <Row k="RSI"                             v={`${rsiVal} — ${rsiLabel}`} color={rsiColor}/>
-            <Row k="MACD"                            v={str(tc.macd)}         color="#2EC98A"/>
-            <Row k={T('SMA 20','م.متحرك 20')}       v={`$${tc.sma20}`}/>
-            <Row k={T('SMA 50','م.متحرك 50')}       v={`$${tc.sma50}`}/>
-            <Row k={T('SMA 200','م.متحرك 200')}     v={`$${tc.sma200}`}/>
-            <Row k={T('Support','الدعم')}            v={`$${tc.support1} / $${tc.support2}`} color="#2EC98A"/>
-            <Row k={T('Resistance','المقاومة')}      v={`$${tc.resistance1} / $${tc.resistance2}`} color="#E85555"/>
+            <Row k={T('Trend','الاتجاه')}      v={str(tc.trend)}                    color="#2EC98A"/>
+            <Row k="RSI"                        v={`${rsiVal} — ${rsiLabel}`}        color={rsiColor}/>
+            <Row k="MACD"                       v={str(tc.macd)}                     color="#2EC98A"/>
+            <Row k={T('SMA 20','م.متحرك 20')}  v={`$${tc.sma20}`}/>
+            <Row k={T('SMA 50','م.متحرك 50')}  v={`$${tc.sma50}`}/>
+            <Row k={T('SMA 200','م.متحرك 200')} v={`$${tc.sma200}`}/>
+            <Row k={T('Support','الدعم')}       v={`$${tc.support1} / $${tc.support2}`}   color="#2EC98A"/>
+            <Row k={T('Resistance','المقاومة')} v={`$${tc.resistance1} / $${tc.resistance2}`} color="#E85555"/>
           </div>
         </div>
 
