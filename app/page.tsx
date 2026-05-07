@@ -1,13 +1,14 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Search, RefreshCw, TrendingUp, Zap, BarChart2 } from 'lucide-react'
+import { Search, RefreshCw, TrendingUp, Zap, BarChart2, Briefcase } from 'lucide-react'
 import { SignalsData, StockData, Lang, TradeSignal } from './components/types'
 import SignalCard from './components/SignalCard'
 import StockDetail from './components/StockDetail'
+import Portfolio from './components/Portfolio'
 
 const TX = {
-  en:{ title:'AlphaVest', sub:'US Trading Signals · AI Powered', signals:"Today's Signals", query:'Stock Query', refresh:'Refresh', loadSig:'Generating today\'s signals...', loadStock:'Analyzing stock...', ph:'Search ticker... AAPL, NVDA, TSLA', empty:'Enter a US ticker for complete analysis', disc:'For informational purposes only. Not financial advice. · AlphaVest © 2026 · Powered by Groq AI' },
-  ar:{ title:'AlphaVest', sub:'توصيات التداول الأمريكي · مدعوم بالذكاء الاصطناعي', signals:'توصيات اليوم', query:'استعلام سهم', refresh:'تحديث', loadSig:'جارٍ إنشاء توصيات اليوم...', loadStock:'جارٍ تحليل السهم...', ph:'ابحث عن سهم... AAPL أو NVDA أو TSLA', empty:'أدخل رمز سهم أمريكي للحصول على تحليل كامل', disc:'للأغراض التعليمية فقط. ليست نصيحة مالية. · AlphaVest © 2026 · Groq AI' }
+  en:{ title:'AlphaVest', sub:'US Trading Signals · AI Powered', signals:"Today's Signals", query:'Stock Query', portfolio:'Portfolio', refresh:'Refresh', loadSig:'Generating today\'s signals...', loadStock:'Analyzing stock...', ph:'Search ticker... AAPL, NVDA, TSLA', empty:'Enter a US ticker for complete analysis', disc:'For informational purposes only. Not financial advice. · AlphaVest © 2026 · Powered by Groq AI' },
+  ar:{ title:'AlphaVest', sub:'توصيات التداول الأمريكي · مدعوم بالذكاء الاصطناعي', signals:'توصيات اليوم', query:'استعلام سهم', portfolio:'محفظتي', refresh:'تحديث', loadSig:'جارٍ إنشاء توصيات اليوم...', loadStock:'جارٍ تحليل السهم...', ph:'ابحث عن سهم... AAPL أو NVDA أو TSLA', empty:'أدخل رمز سهم أمريكي للحصول على تحليل كامل', disc:'للأغراض التعليمية فقط. ليست نصيحة مالية. · AlphaVest © 2026 · Groq AI' }
 }
 
 const QUICK = ['NVDA','AAPL','MSFT','TSLA','AMZN','META','GOOGL','JPM','AMAT','AMD','NFLX','INTC']
@@ -22,32 +23,13 @@ const SECTORS = [
   { key: 'Industrials', en: 'Industrial', ar: 'صناعة' },
 ]
 
-// ✅ كلمات مفتاحية إنجليزية وعربية لكل قطاع
 const SECTOR_KEYWORDS: Record<string, string[]> = {
-  'Technology':  [
-    'tech', 'software', 'semiconductor', 'internet', 'cloud', 'ai', 'data', 'cyber', 'saas',
-    'تقني', 'برمجي', 'حالات', 'ذكاء', 'بيانات', 'سحاب', 'آلي', 'معلومات', 'إلكتروني',
-  ],
-  'Financials':  [
-    'financ', 'bank', 'insurance', 'invest', 'capital', 'asset', 'payment', 'exchange',
-    'مالي', 'مصرف', 'بنك', 'استثمار', 'تأمين', 'رأس المال', 'دفع',
-  ],
-  'Energy':      [
-    'energy', 'oil', 'gas', 'petroleum', 'power', 'utilities', 'renewab',
-    'طاق', 'نفط', 'غاز', 'بترول', 'ميثال', 'كهرب', 'طبيعي',
-  ],
-  'Healthcare':  [
-    'health', 'pharma', 'biotech', 'medical', 'drug', 'life science', 'hospital',
-    'صح', 'دواء', 'طب', 'بيو', 'مستشفى', 'علاج', 'رعاية',
-  ],
-  'Consumer':    [
-    'consumer', 'retail', 'food', 'beverage', 'discretionary', 'staples', 'apparel', 'restaurant',
-    'استهلاك', 'تجزئة', 'غذاء', 'ترفيه', 'سيارات', 'ملابس', 'مطعم',
-  ],
-  'Industrials': [
-    'industri', 'aerospace', 'defense', 'transport', 'manufactur', 'logistic', 'machinery',
-    'صناع', 'طيران', 'دفاع', 'نقل', 'تصنيع', 'لوجستي', 'آلات',
-  ],
+  'Technology':  ['tech','software','semiconductor','internet','cloud','ai','data','cyber','saas','تقني','برمجي','حالات','ذكاء','بيانات','سحاب','آلي','معلومات','إلكتروني'],
+  'Financials':  ['financ','bank','insurance','invest','capital','asset','payment','exchange','مالي','مصرف','بنك','استثمار','تأمين','رأس المال','دفع'],
+  'Energy':      ['energy','oil','gas','petroleum','power','utilities','renewab','طاق','نفط','غاز','بترول','ميثال','كهرب','طبيعي'],
+  'Healthcare':  ['health','pharma','biotech','medical','drug','life science','hospital','صح','دواء','طب','بيو','مستشفى','علاج','رعاية'],
+  'Consumer':    ['consumer','retail','food','beverage','discretionary','staples','apparel','restaurant','استهلاك','تجزئة','غذاء','ترفيه','سيارات','ملابس','مطعم'],
+  'Industrials': ['industri','aerospace','defense','transport','manufactur','logistic','machinery','صناع','طيران','دفاع','نقل','تصنيع','لوجستي','آلات'],
 }
 
 function matchSector(signalSector: string, filterKey: string): boolean {
@@ -59,7 +41,7 @@ function matchSector(signalSector: string, filterKey: string): boolean {
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>('en')
-  const [tab, setTab] = useState<'signals'|'query'>('signals')
+  const [tab, setTab] = useState<'signals'|'query'|'portfolio'>('signals')
   const [signals, setSignals] = useState<SignalsData|null>(null)
   const [loadSig, setLoadSig] = useState(false)
   const [search, setSearch] = useState('')
@@ -110,10 +92,20 @@ export default function Home() {
     <div className="app" dir={lang==='ar'?'rtl':'ltr'}>
       <header className="hdr">
         <div className="hdr-in">
-          <div className="logo"><Zap size={17} color="#C9A84C" strokeWidth={2.5}/><span className="logo-t">Alpha<b>Vest</b></span></div>
+          <div className="logo">
+            <Zap size={17} color="#C9A84C" strokeWidth={2.5}/>
+            <span className="logo-t">Alpha<b>Vest</b></span>
+          </div>
           <nav className="hnav">
-            <button className={`ntab ${tab==='signals'?'on':''}`} onClick={()=>setTab('signals')}><TrendingUp size={14}/> {tx.signals}</button>
-            <button className={`ntab ${tab==='query'?'on':''}`} onClick={()=>setTab('query')}><Search size={14}/> {tx.query}</button>
+            <button className={`ntab ${tab==='signals'?'on':''}`} onClick={()=>setTab('signals')}>
+              <TrendingUp size={14}/> {tx.signals}
+            </button>
+            <button className={`ntab ${tab==='query'?'on':''}`} onClick={()=>setTab('query')}>
+              <Search size={14}/> {tx.query}
+            </button>
+            <button className={`ntab ${tab==='portfolio'?'on':''}`} onClick={()=>setTab('portfolio')}>
+              <Briefcase size={14}/> {tx.portfolio}
+            </button>
           </nav>
           <div className="lang-row">
             <button className={`lb ${lang==='en'?'on':''}`} onClick={()=>setLang('en')}>EN</button>
@@ -123,11 +115,14 @@ export default function Home() {
       </header>
 
       <main className="main">
+        {/* ✅ Today's Signals */}
         {tab==='signals'&&(
           <div>
             <div className="ph">
               <div><h1 className="ptitle">{tx.signals}</h1>{signals&&<div className="pdate">{signals.date}</div>}</div>
-              <button className="rbtn" onClick={fetchSignals} disabled={loadSig}><RefreshCw size={13} className={loadSig?'spin':''}/> {tx.refresh}</button>
+              <button className="rbtn" onClick={fetchSignals} disabled={loadSig}>
+                <RefreshCw size={13} className={loadSig?'spin':''}/> {tx.refresh}
+              </button>
             </div>
 
             {signals?.marketSummary&&(
@@ -168,7 +163,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* ✅ فلتر القطاعات مع دعم عربي */}
             {signals&&(
               <div className="sector-filter">
                 {SECTORS.map(s => {
@@ -220,6 +214,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* ✅ Stock Query */}
         {tab==='query'&&(
           <div>
             <div className="ph"><h1 className="ptitle">{tx.query}</h1></div>
@@ -261,6 +256,17 @@ export default function Home() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ✅ Portfolio */}
+        {tab==='portfolio'&&(
+          <Portfolio
+            lang={lang}
+            onAnalyze={(ticker) => {
+              setSearch(ticker)
+              analyze(ticker)
+            }}
+          />
         )}
       </main>
 
