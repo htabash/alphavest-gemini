@@ -1,18 +1,26 @@
 import Groq from 'groq-sdk'
 
-export async function generateJSON(prompt: string): Promise<unknown> {
+export async function generateJSON(prompt: string, lang = 'en'): Promise<unknown> {
   const client = new Groq({ apiKey: process.env.GROQ_API_KEY })
+
+  // ✅ نموذج مختلف حسب اللغة
+  const model = lang === 'ar'
+    ? 'llama-3.3-70b-versatile'  // أقوى للعربية
+    : 'llama-3.1-8b-instant'     // أسرع للإنجليزية
+
+  const max_tokens = lang === 'ar' ? 2500 : 3000
+
   const completion = await client.chat.completions.create({
-    model: 'llama-3.1-8b-instant',
+    model,
     messages: [
       {
         role: 'system',
-        content: 'You are an expert financial analyst. Always respond with valid JSON only. No markdown, no backticks, no explanation. Never use + sign before positive numbers in JSON. Always complete the full JSON response — never truncate.'
+        content: 'You are an expert financial analyst. Always respond with valid JSON only. No markdown, no backticks, no explanation. Never use + sign before positive numbers in JSON. Always complete the full JSON response.'
       },
       { role: 'user', content: prompt }
     ],
     temperature: 0.6,
-    max_tokens: 3000,
+    max_tokens,
   })
 
   const text = completion.choices[0]?.message?.content || '{}'
