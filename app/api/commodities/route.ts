@@ -5,82 +5,108 @@ import { generateJSON } from '@/lib/groq'
 let cache: { data: unknown; time: number } | null = null
 let signalsCache: { data: unknown; time: number } | null = null
 const CACHE_MS = 5 * 60 * 1000
-const SIGNALS_CACHE_MS = 30 * 60 * 1000 // 30 دقيقة للـ signals
+const SIGNALS_CACHE_MS = 30 * 60 * 1000
 
-// ✅ Prompt للذكاء الاصطناعي لتحليل السلع
 function commoditySignalsPrompt(priceContext: string): string {
-  return `You are a professional commodities trader. Analyze these current commodity prices and generate trading signals.
+  return `You are a professional commodities trader analyzing May 2026 markets.
 
-CURRENT PRICES: ${priceContext}
+CURRENT REAL PRICES: ${priceContext}
 
-Return ONLY valid JSON:
+Analyze each commodity and return trading signals. Return ONLY valid JSON:
 {
   "signals": [
     {
       "symbol": "GC=F",
       "signal": "buy",
       "confidence": 78,
-      "entry": 3320.00,
-      "stopLoss": 3280.00,
-      "target1": 3380.00,
-      "target2": 3450.00,
-      "quantity": 1,
-      "reasoning": "Gold testing key support at $3,320 with strong momentum. Fed uncertainty drives safe-haven demand.",
-      "catalyst": "Fed meeting uncertainty + geopolitical tensions"
+      "reasoning": "Gold holding above key support with safe-haven demand rising.",
+      "catalyst": "Fed uncertainty + geopolitical tensions"
     }
   ]
 }
 
 RULES:
 - Analyze ALL symbols provided
-- signal: buy | sell | hold
-- confidence: 60-95
-- entry: within 0.5% of current price
-- stopLoss: 1-3% from entry
-- target1: 3-5% from entry
-- target2: 6-10% from entry
-- quantity: always 1
-- reasoning: 2 sentences with specific price level
-- catalyst: key driver
-- sell signal: entry ABOVE price, targets BELOW price
-- Generate mix: 40% buy, 20% sell, 40% hold
-- Only generate buy/sell for high-confidence setups (confidence > 70)`
+- signal: ONLY "buy" | "sell" | "hold"
+- confidence: integer 60-95
+- reasoning: 1-2 sentences with specific price level
+- catalyst: short phrase
+- Generate realistic mix: 3-4 hold, 3-4 buy, 2-3 sell
+- Only generate buy/sell for high conviction setups (confidence > 70)
+- Do NOT include entry/stopLoss/target — these will be calculated from real prices
+- Return exactly one signal per symbol`
 }
 
 export async function GET() {
   try {
     const now = Date.now()
 
-    // ✅ Commodity prices cache
+    // ✅ إرجاع الـ cache إذا كان صالحاً
     if (cache && (now - cache.time) < CACHE_MS) {
-      // أعد الأسعار مع الـ signals المحفوظة
       const signals = signalsCache && (now - signalsCache.time) < SIGNALS_CACHE_MS
         ? signalsCache.data
         : null
       return NextResponse.json({ data: cache.data, signals })
     }
 
-    // جلب الأسعار الحية
+    // ✅ جلب الأسعار الحية
     const data = await getAllCommodities()
     cache = { data, time: now }
 
-    // ✅ جلب AI signals كل 30 دقيقة
+    // ✅ توليد AI signals
     let signals = null
+
     if (!signalsCache || (now - signalsCache.time) >= SIGNALS_CACHE_MS) {
       try {
-        const priceContext = (data as Array<{symbol:string;price:number;priceChangePct:number}>)
-          .map(c => `${c.symbol}=$${c.price}(${c.priceChangePct > 0 ? '+' : ''}${c.priceChangePct}%)`)
+        const priceContext = (data as Array<{ symbol: string; price: number; priceChangePct: number }>)
+          .map(c => `${c.symbol}=$${c.price}(${c.priceChangePct >= 0 ? '+' : ''}${c.priceChangePct}%)`)
           .join(', ')
 
         const aiData = await generateJSON(commoditySignalsPrompt(priceContext), 'en')
-        signals = (aiData as {signals: unknown}).signals || []
+        const rawSignals = ((aiData as { signals?: unknown[] }).signals || []) as Array<Record<string, unknown>>
+
+        // ✅ Override بالأسعار الحقيقية
+        const priceMap = new Map(
+          (data as Array<{ symbol: string; price: number }>).map(d => [d.symbol, d.price])
+        )
+
+        signals = rawSignals.map(sig => {
+          const realPrice = priceMap.get(sig.symbol as string)
+          if (!realPrice || sig.signal === 'hold') {
+            return {
+              ...sig,
+              entry: realPrice || 0,
+              stopLoss: null,
+              target1: null,
+              target2: null,
+              quantity: 1,
+            }
+          }
+
+          const isSell = sig.signal === 'sell'
+
+          return {
+            ...sig,
+            quantity: 1,
+            entry:    +( isSell ? realPrice * 1.005 : realPrice * 0.995 ).toFixed(3),
+            stopLoss: +( isSell ? realPrice * 1.030 : realPrice * 0.970 ).toFixed(3),
+            target1:  +( isSell ? realPrice * 0.960 : realPrice * 1.040 ).toFixed(3),
+            target2:  +( isSell ? realPrice * 0.930 : realPrice * 1.080 ).toFixed(3),
+          }
+        })
+
         signalsCache = { data: signals, time: now }
-      } catch { signals = [] }
+
+      } catch (e) {
+        console.error('[Commodities] AI signals error:', e)
+        signals = []
+      }
     } else {
       signals = signalsCache.data
     }
 
     return NextResponse.json({ data, signals })
+
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error'
     return NextResponse.json({ error: msg }, { status: 500 })
