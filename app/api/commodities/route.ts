@@ -1,137 +1,107 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { getAllCommodities } from '@/lib/market'
 import { generateJSON } from '@/lib/groq'
-import { analyzePrompt } from '@/lib/prompts'
-import { getQuote } from '@/lib/market'
 
-const cache = new Map<string, { data: unknown; time: number }>()
-const CACHE_MS = 60 * 60 * 1000
+let cache: { data: unknown; time: number } | null = null
+let signalsCache: { data: unknown; time: number } | null = null
+const CACHE_MS = 5 * 60 * 1000
+const SIGNALS_CACHE_MS = 30 * 60 * 1000
 
-// ✅ format السعر — يحافظ على الأرقام العشرية للسلع الصغيرة
-function fmt(n: number): string {
-  if (n >= 100)  return Math.round(n).toString()
-  if (n >= 10)   return n.toFixed(2)
-  if (n >= 1)    return n.toFixed(3)
-  return n.toFixed(4)
+function commoditySignalsPrompt(priceContext: string): string {
+  return `You are a professional commodities trader analyzing May 2026 markets.
+
+CURRENT REAL PRICES: ${priceContext}
+
+Analyze each commodity and return trading signals. Return ONLY valid JSON:
+{
+  "signals": [
+    {
+      "symbol": "GC=F",
+      "signal": "buy",
+      "confidence": 78,
+      "reasoning": "Gold holding above key support with safe-haven demand rising.",
+      "catalyst": "Fed uncertainty + geopolitical tensions"
+    }
+  ]
 }
 
-function buildPrices(p: number, sig: string): {
-  entry: string; stopLoss: string; target1: string; target2: string
-} {
-  const isSell = sig.includes('sell')
-  const isHold = sig.includes('hold')
-
-  if (isSell) return {
-    entry:    `$${fmt(p * 1.01)}-${fmt(p * 1.03)}`,
-    stopLoss: `$${fmt(p * 1.06)}`,
-    target1:  `$${fmt(p * 0.90)}`,
-    target2:  `$${fmt(p * 0.82)}`,
-  }
-  if (isHold) return {
-    entry:    `$${fmt(p * 0.98)}-${fmt(p * 1.02)}`,
-    stopLoss: `$${fmt(p * 0.93)}`,
-    target1:  `$${fmt(p * 1.07)}`,
-    target2:  `$${fmt(p * 1.12)}`,
-  }
-  return {
-    entry:    `$${fmt(p * 0.97)}-${fmt(p * 1.01)}`,
-    stopLoss: `$${fmt(p * 0.94)}`,
-    target1:  `$${fmt(p * 1.10)}`,
-    target2:  `$${fmt(p * 1.18)}`,
-  }
+RULES:
+- Analyze ALL symbols provided
+- signal: ONLY "buy" | "sell" | "hold"
+- confidence: integer 60-95
+- reasoning: 1-2 sentences with specific price level
+- catalyst: short phrase
+- Generate realistic mix: 3-4 hold, 3-4 buy, 2-3 sell
+- Only generate buy/sell for high conviction setups (confidence > 70)
+- Do NOT include entry/stopLoss/target — these will be calculated from real prices
+- Return exactly one signal per symbol`
 }
 
-export async function POST(req: NextRequest) {
+export async function GET() {
   try {
-    const { ticker, lang, signal: originalSignal } = await req.json()
-    if (!ticker) return NextResponse.json({ error: 'Ticker required' }, { status: 400 })
-
-    const sym = ticker.toUpperCase()
-    const cacheKey = `${sym}-${lang || 'en'}-${originalSignal || 'query'}`
     const now = Date.now()
 
-    if (cache.has(cacheKey)) {
-      const cached = cache.get(cacheKey)!
-      if (now - cached.time < CACHE_MS) {
-        const data = { ...(cached.data as Record<string, unknown>) }
-        const quote = await getQuote(sym)
-        if (quote) {
-          data.price          = quote.price
-          data.priceChange    = quote.priceChange
-          data.priceChangePct = quote.priceChangePct
-          data.open           = quote.open
-          data.high           = quote.high
-          data.low            = quote.low
-          data.volume         = quote.volume
-          data.avgVolume      = quote.avgVolume
-          if (quote.history1M.length > 0) {
-            data.historicalPrices = {
-              '1M': quote.history1M,
-              '3M': quote.history3M.length > 0 ? quote.history3M : quote.history1M,
-              '6M': quote.history6M.length > 0 ? quote.history6M : quote.history1M,
-              '1Y': quote.history1Y.length > 0 ? quote.history1Y : quote.history1M,
+    if (cache && (now - cache.time) < CACHE_MS) {
+      const signals = signalsCache && (now - signalsCache.time) < SIGNALS_CACHE_MS
+        ? signalsCache.data
+        : null
+      return NextResponse.json({ data: cache.data, signals })
+    }
+
+    const data = await getAllCommodities()
+    cache = { data, time: now }
+
+    let signals = null
+
+    if (!signalsCache || (now - signalsCache.time) >= SIGNALS_CACHE_MS) {
+      try {
+        const priceContext = (data as Array<{ symbol: string; price: number; priceChangePct: number }>)
+          .map(c => `${c.symbol}=$${c.price}(${c.priceChangePct >= 0 ? '+' : ''}${c.priceChangePct}%)`)
+          .join(', ')
+
+        const aiData = await generateJSON(commoditySignalsPrompt(priceContext), 'en')
+        const rawSignals = ((aiData as { signals?: unknown[] }).signals || []) as Array<Record<string, unknown>>
+
+        const priceMap = new Map(
+          (data as Array<{ symbol: string; price: number }>).map(d => [d.symbol, d.price])
+        )
+
+        signals = rawSignals.map(sig => {
+          const realPrice = priceMap.get(sig.symbol as string)
+          if (!realPrice || sig.signal === 'hold') {
+            return {
+              ...sig,
+              entry: realPrice || 0,
+              stopLoss: null,
+              target1: null,
+              target2: null,
+              quantity: 1,
             }
           }
-          const p = quote.price
-          const sig = (originalSignal || data.signal as string)?.toLowerCase() || ''
-          const prices = buildPrices(p, sig)
-          data.entry    = prices.entry
-          data.stopLoss = prices.stopLoss
-          data.target1  = prices.target1
-          data.target2  = prices.target2
-        }
-        return NextResponse.json(data)
+
+          const isSell = sig.signal === 'sell'
+
+          return {
+            ...sig,
+            quantity: 1,
+            entry:    +( isSell ? realPrice * 1.005 : realPrice * 0.995 ).toFixed(3),
+            stopLoss: +( isSell ? realPrice * 1.030 : realPrice * 0.970 ).toFixed(3),
+            target1:  +( isSell ? realPrice * 0.960 : realPrice * 1.040 ).toFixed(3),
+            target2:  +( isSell ? realPrice * 0.930 : realPrice * 1.080 ).toFixed(3),
+          }
+        })
+
+        signalsCache = { data: signals, time: now }
+
+      } catch (e) {
+        console.error('[Commodities] AI signals error:', e)
+        signals = []
       }
+    } else {
+      signals = signalsCache.data
     }
 
-    const quote = await getQuote(sym)
-    const realPrice = quote?.price && quote.price > 0 ? quote.price : undefined
-
-    const aiData = await generateJSON(
-      analyzePrompt(sym, lang || 'en', realPrice, originalSignal || undefined),
-      lang || 'en'
-    )
-    const data = aiData as Record<string, unknown>
-
-    if (originalSignal) data.signal = originalSignal
-
-    if (quote) {
-      data.price          = quote.price
-      data.priceChange    = quote.priceChange
-      data.priceChangePct = quote.priceChangePct
-      data.open           = quote.open
-      data.high           = quote.high
-      data.low            = quote.low
-      data.volume         = quote.volume
-      data.avgVolume      = quote.avgVolume
-      data.week52High     = quote.week52High
-      data.week52Low      = quote.week52Low
-      data.marketCap      = quote.marketCap
-      data.beta           = quote.beta ?? data.beta
-      if (quote.history1M.length > 0) {
-        data.historicalPrices = {
-          '1M': quote.history1M,
-          '3M': quote.history3M.length > 0 ? quote.history3M : quote.history1M,
-          '6M': quote.history6M.length > 0 ? quote.history6M : quote.history1M,
-          '1Y': quote.history1Y.length > 0 ? quote.history1Y : quote.history1M,
-        }
-      }
-      const fm = data.fundamentals as Record<string, unknown>
-      if (fm && quote.pe)  fm.pe  = quote.pe
-      if (fm && quote.eps) fm.eps = `$${quote.eps}`
-    }
-
-    const p = quote?.price || 0
-    if (p > 0) {
-      const sig = (originalSignal || data.signal as string)?.toLowerCase() || ''
-      const prices = buildPrices(p, sig)
-      data.entry    = prices.entry
-      data.stopLoss = prices.stopLoss
-      data.target1  = prices.target1
-      data.target2  = prices.target2
-    }
-
-    cache.set(cacheKey, { data, time: now })
-    return NextResponse.json(data)
+    return NextResponse.json({ data, signals })
 
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error'
