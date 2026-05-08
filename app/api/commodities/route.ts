@@ -4,8 +4,8 @@ import { generateJSON } from '@/lib/groq'
 
 let cache: { data: unknown; time: number } | null = null
 let signalsCache: { data: unknown; time: number } | null = null
-const CACHE_MS = 5 * 60 * 1000
-const SIGNALS_CACHE_MS = 30 * 60 * 1000
+const CACHE_MS = 0 * 60 * 1000
+const SIGNALS_CACHE_MS = 0
 
 function commoditySignalsPrompt(priceContext: string): string {
   return `You are a professional commodities trader analyzing May 2026 markets.
