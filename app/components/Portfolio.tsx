@@ -46,7 +46,6 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
   const triggeredRef = useRef<Set<string>>(new Set())
   const T = (en: string, ar: string) => lang === 'ar' ? ar : en
 
-  // ✅ تحميل البيانات من localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem('alphavest-portfolio')
@@ -68,7 +67,6 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
     localStorage.setItem('alphavest-alerts', JSON.stringify(newAlerts))
   }
 
-  // ✅ تشغيل صوت التنبيه
   const playSound = (type: 'success' | 'warning' | 'danger') => {
     try {
       const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
@@ -86,7 +84,6 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
     } catch { }
   }
 
-  // ✅ إرسال Browser Notification
   const sendBrowserNotification = useCallback((title: string, body: string) => {
     if (!('Notification' in window)) return
     if (Notification.permission === 'granted') {
@@ -98,23 +95,17 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
     }
   }, [])
 
-  // ✅ إطلاق التنبيه
-  const triggerAlert = useCallback((
-    pos: Position,
-    type: Alert['type'],
-    price: number,
-    currentPrice: number
-  ) => {
+  const triggerAlert = useCallback((pos: Position, type: Alert['type'], price: number, currentPrice: number) => {
     const key = `${pos.id}-${type}`
     if (triggeredRef.current.has(key)) return
     triggeredRef.current.add(key)
     localStorage.setItem('alphavest-triggered', JSON.stringify([...triggeredRef.current]))
 
     const messages: Record<Alert['type'], { en: string; ar: string; sound: 'success' | 'warning' | 'danger' }> = {
-      entry:   { en: `${pos.ticker} reached entry zone $${price}! 🎯`,   ar: `${pos.ticker} وصل لمنطقة الدخول $${price}! 🎯`,   sound: 'success' },
-      target1: { en: `${pos.ticker} hit Target 1 at $${price}! 🎉`,      ar: `${pos.ticker} وصل الهدف الأول $${price}! 🎉`,      sound: 'success' },
-      target2: { en: `${pos.ticker} hit Target 2 at $${price}! 🚀`,      ar: `${pos.ticker} وصل الهدف الثاني $${price}! 🚀`,     sound: 'success' },
-      stop:    { en: `${pos.ticker} hit Stop Loss at $${price}! ⚠️`,     ar: `${pos.ticker} وصل وقف الخسارة $${price}! ⚠️`,     sound: 'danger'  },
+      entry:   { en: `${pos.ticker} reached entry zone $${price}! 🎯`,  ar: `${pos.ticker} وصل لمنطقة الدخول $${price}! 🎯`,  sound: 'success' },
+      target1: { en: `${pos.ticker} hit Target 1 at $${price}! 🎉`,     ar: `${pos.ticker} وصل الهدف الأول $${price}! 🎉`,     sound: 'success' },
+      target2: { en: `${pos.ticker} hit Target 2 at $${price}! 🚀`,     ar: `${pos.ticker} وصل الهدف الثاني $${price}! 🚀`,    sound: 'success' },
+      stop:    { en: `${pos.ticker} hit Stop Loss at $${price}! ⚠️`,    ar: `${pos.ticker} وصل وقف الخسارة $${price}! ⚠️`,    sound: 'danger'  },
     }
 
     const msg = messages[type]
@@ -143,7 +134,7 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
     }
   }, [lang, alertsEnabled, sendBrowserNotification])
 
-  // ✅ جلب الأسعار وفحص التنبيهات
+  // ✅ جلب الأسعار عبر /api/price بدون cache
   useEffect(() => {
     if (positions.length === 0) return
 
@@ -154,53 +145,39 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
 
         await Promise.all(tickers.map(async (ticker) => {
           try {
-            const r = await fetch('/api/analyze', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ticker, lang: 'en' })
+            // ✅ endpoint مخصص بدون cache
+            const r = await fetch(`/api/price?ticker=${ticker}`, {
+              cache: 'no-store'
             })
             const data = await r.json()
             if (data.price) {
-              results[ticker] = { price: data.price, priceChangePct: data.priceChangePct || 0 }
+              results[ticker] = {
+                price: data.price,
+                priceChangePct: data.priceChangePct || 0
+              }
             }
           } catch { }
         }))
 
         setLivePrices(results)
 
-        // ✅ فحص التنبيهات لكل صفقة
+        // ✅ فحص التنبيهات
         positions.forEach(pos => {
           const live = results[pos.ticker]
           if (!live) return
           const p = live.price
-
-          // Entry Alert — عندما يقترب السعر من الـ entry (ضمن 1%)
-          const entryMid = pos.entryPrice
-          if (Math.abs(p - entryMid) / entryMid <= 0.01) {
-            triggerAlert(pos, 'entry', pos.entryPrice, p)
-          }
-
-          // Target 1
-          if (pos.target1 > 0 && p >= pos.target1) {
-            triggerAlert(pos, 'target1', pos.target1, p)
-          }
-
-          // Target 2
-          if (pos.target2 > 0 && p >= pos.target2) {
-            triggerAlert(pos, 'target2', pos.target2, p)
-          }
-
-          // Stop Loss
-          if (pos.stopLoss > 0 && p <= pos.stopLoss) {
-            triggerAlert(pos, 'stop', pos.stopLoss, p)
-          }
+          if (Math.abs(p - pos.entryPrice) / pos.entryPrice <= 0.01) triggerAlert(pos, 'entry', pos.entryPrice, p)
+          if (pos.target1 > 0 && p >= pos.target1) triggerAlert(pos, 'target1', pos.target1, p)
+          if (pos.target2 > 0 && p >= pos.target2) triggerAlert(pos, 'target2', pos.target2, p)
+          if (pos.stopLoss > 0 && p <= pos.stopLoss) triggerAlert(pos, 'stop', pos.stopLoss, p)
         })
 
       } catch { }
     }
 
     fetchPrices()
-    const interval = setInterval(fetchPrices, 5 * 60 * 1000)
+    // ✅ تحديث كل دقيقتين بدلاً من 5 دقائق
+    const interval = setInterval(fetchPrices, 2 * 60 * 1000)
     return () => clearInterval(interval)
   }, [positions, triggerAlert])
 
@@ -219,11 +196,9 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
       signal: form.signal,
       notes: form.notes,
     }
-    // ✅ امسح triggered لهذا الـ ticker حتى يُعاد فحصه
     const newTriggered = new Set([...triggeredRef.current].filter(k => !k.startsWith(newPosition.id)))
     triggeredRef.current = newTriggered
     localStorage.setItem('alphavest-triggered', JSON.stringify([...newTriggered]))
-
     savePositions([...positions, newPosition])
     setForm(EMPTY_FORM)
     setShowForm(false)
@@ -253,8 +228,7 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
     }
   }, { totalValue: 0, totalCost: 0, totalPnL: 0 })
 
-  const totalPnLPct = totalStats.totalCost > 0
-    ? (totalStats.totalPnL / totalStats.totalCost) * 100 : 0
+  const totalPnLPct = totalStats.totalCost > 0 ? (totalStats.totalPnL / totalStats.totalCost) * 100 : 0
 
   const getStatus = (pos: Position) => {
     const live = livePrices[pos.ticker]
@@ -267,12 +241,7 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
   }
 
   const unreadCount = alerts.filter(a => !a.read).length
-
-  const markAllRead = () => {
-    const updated = alerts.map(a => ({ ...a, read: true }))
-    saveAlerts(updated)
-  }
-
+  const markAllRead = () => saveAlerts(alerts.map(a => ({ ...a, read: true })))
   const clearAlerts = () => {
     saveAlerts([])
     triggeredRef.current = new Set()
@@ -294,65 +263,41 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
 
   return (
     <div>
-      {/* ✅ Header */}
+      {/* Header */}
       <div className="ph">
         <div>
           <h1 className="ptitle">{T('Portfolio', 'محفظتي')}</h1>
           <div className="pdate">{T('Track your open positions', 'تتبع صفقاتك المفتوحة')}</div>
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
-
-          {/* ✅ زر التنبيهات */}
           <button
             onClick={() => { setShowAlerts(!showAlerts); if (!showAlerts) markAllRead() }}
-            style={{
-              position:'relative', display:'flex', alignItems:'center', gap:6,
-              padding:'8px 14px', borderRadius:8, border:'.5px solid var(--border2)',
-              background: showAlerts ? 'var(--gold-bg)' : 'transparent',
-              color: showAlerts ? 'var(--gold)' : 'var(--t2)',
-              cursor:'pointer', fontSize:12, fontFamily:'DM Sans,sans-serif'
-            }}
+            style={{position:'relative',display:'flex',alignItems:'center',gap:6,padding:'8px 14px',borderRadius:8,border:'.5px solid var(--border2)',background:showAlerts?'var(--gold-bg)':'transparent',color:showAlerts?'var(--gold)':'var(--t2)',cursor:'pointer',fontSize:12,fontFamily:'DM Sans,sans-serif'}}
           >
             <Bell size={14}/>
             {T('Alerts','التنبيهات')}
             {unreadCount > 0 && (
-              <span style={{
-                position:'absolute', top:-6, right:-6,
-                background:'#E85555', color:'white',
-                borderRadius:'50%', width:18, height:18,
-                display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:10, fontWeight:700
-              }}>{unreadCount}</span>
+              <span style={{position:'absolute',top:-6,right:-6,background:'#E85555',color:'white',borderRadius:'50%',width:18,height:18,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700}}>
+                {unreadCount}
+              </span>
             )}
           </button>
-
-          {/* ✅ تفعيل/إيقاف التنبيهات */}
           <button
             onClick={() => setAlertsEnabled(!alertsEnabled)}
             title={alertsEnabled ? T('Disable alerts','إيقاف التنبيهات') : T('Enable alerts','تفعيل التنبيهات')}
-            style={{
-              display:'flex', alignItems:'center', padding:'8px',
-              borderRadius:8, border:'.5px solid var(--border2)',
-              background:'transparent',
-              color: alertsEnabled ? '#2EC98A' : 'var(--t3)',
-              cursor:'pointer'
-            }}
+            style={{display:'flex',alignItems:'center',padding:'8px',borderRadius:8,border:'.5px solid var(--border2)',background:'transparent',color:alertsEnabled?'#2EC98A':'var(--t3)',cursor:'pointer'}}
           >
             {alertsEnabled ? <Bell size={14}/> : <BellOff size={14}/>}
           </button>
-
           <button className="abtn" onClick={() => setShowForm(true)}>
             <Plus size={14}/> {T('Add Position', 'إضافة صفقة')}
           </button>
         </div>
       </div>
 
-      {/* ✅ Alerts Panel */}
+      {/* Alerts Panel */}
       {showAlerts && (
-        <div style={{
-          background:'var(--card)', border:'.5px solid var(--border)',
-          borderRadius:13, padding:'13px 15px', marginBottom:16
-        }}>
+        <div style={{background:'var(--card)',border:'.5px solid var(--border)',borderRadius:13,padding:'13px 15px',marginBottom:16}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
             <span style={{fontSize:12,fontWeight:500,color:'var(--t)'}}>
               🔔 {T('Price Alerts','تنبيهات الأسعار')}
@@ -371,7 +316,6 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
               )}
             </div>
           </div>
-
           {alerts.length === 0 ? (
             <div style={{textAlign:'center',padding:'20px 0',color:'var(--t3)',fontSize:12}}>
               {T('No alerts yet. Alerts will appear when prices reach your targets.','لا توجد تنبيهات بعد. ستظهر عند وصول الأسعار لأهدافك.')}
@@ -379,25 +323,13 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
           ) : (
             <div style={{display:'flex',flexDirection:'column',gap:6,maxHeight:300,overflowY:'auto'}}>
               {alerts.map(alert => (
-                <div key={alert.id} style={{
-                  display:'flex', alignItems:'center', gap:10,
-                  padding:'8px 10px', borderRadius:8,
-                  background: alert.read ? 'transparent' : 'rgba(255,255,255,0.03)',
-                  border:`.5px solid ${alertTypeColor(alert.type)}30`,
-                  opacity: alert.read ? 0.7 : 1
-                }}>
+                <div key={alert.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',borderRadius:8,background:alert.read?'transparent':'rgba(255,255,255,0.03)',border:`.5px solid ${alertTypeColor(alert.type)}30`,opacity:alert.read?0.7:1}}>
                   <span style={{fontSize:16}}>{alertTypeIcon(alert.type)}</span>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:12,color:'var(--t)',fontWeight: alert.read ? 400 : 500}}>
-                      {alert.message}
-                    </div>
-                    <div style={{fontSize:10,color:'var(--t3)',marginTop:2}}>
-                      {alert.timestamp} · ${alert.price.toFixed(2)}
-                    </div>
+                    <div style={{fontSize:12,color:'var(--t)',fontWeight:alert.read?400:500}}>{alert.message}</div>
+                    <div style={{fontSize:10,color:'var(--t3)',marginTop:2}}>{alert.timestamp} · ${alert.price.toFixed(2)}</div>
                   </div>
-                  {!alert.read && (
-                    <div style={{width:6,height:6,borderRadius:'50%',background:alertTypeColor(alert.type),flexShrink:0}}/>
-                  )}
+                  {!alert.read && <div style={{width:6,height:6,borderRadius:'50%',background:alertTypeColor(alert.type),flexShrink:0}}/>}
                 </div>
               ))}
             </div>
@@ -405,22 +337,22 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
         </div>
       )}
 
-      {/* ✅ إجمالي المحفظة */}
+      {/* Summary */}
       {positions.length > 0 && (
         <div className="port-summary">
           <div className="port-stat">
             <div className="port-stat-lbl">{T('Total Value', 'إجمالي القيمة')}</div>
-            <div className="port-stat-val">${totalStats.totalValue.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+            <div className="port-stat-val">${totalStats.totalValue.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:2})}</div>
           </div>
           <div className="port-stat">
             <div className="port-stat-lbl">{T('Total Cost', 'إجمالي التكلفة')}</div>
-            <div className="port-stat-val">${totalStats.totalCost.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+            <div className="port-stat-val">${totalStats.totalCost.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:2})}</div>
           </div>
           <div className="port-stat">
             <div className="port-stat-lbl">{T('Total P&L', 'الربح/الخسارة')}</div>
-            <div className="port-stat-val" style={{color: totalStats.totalPnL >= 0 ? '#2EC98A' : '#E85555'}}>
-              {totalStats.totalPnL >= 0 ? '+' : ''}${totalStats.totalPnL.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}
-              <span style={{fontSize:13,marginLeft:6}}>({totalPnLPct >= 0 ? '+' : ''}{totalPnLPct.toFixed(2)}%)</span>
+            <div className="port-stat-val" style={{color:totalStats.totalPnL>=0?'#2EC98A':'#E85555'}}>
+              {totalStats.totalPnL>=0?'+':''}${totalStats.totalPnL.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:2})}
+              <span style={{fontSize:13,marginLeft:6}}>({totalPnLPct>=0?'+':''}{totalPnLPct.toFixed(2)}%)</span>
             </div>
           </div>
           <div className="port-stat">
@@ -430,7 +362,7 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
         </div>
       )}
 
-      {/* ✅ قائمة الصفقات */}
+      {/* Positions */}
       {positions.length === 0 ? (
         <div className="empty" style={{marginTop:60}}>
           <DollarSign size={44} color="var(--t3)"/>
@@ -449,8 +381,7 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
             const hasAlert = alerts.some(a => a.ticker === pos.ticker && !a.read)
 
             return (
-              <div key={pos.id} className="port-card" style={hasAlert ? {borderColor:'var(--gold)'} : {}}>
-                {/* Card Header */}
+              <div key={pos.id} className="port-card" style={hasAlert?{borderColor:'var(--gold)'}:{}}>
                 <div className="port-card-top">
                   <div>
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -458,9 +389,7 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
                       <span className="sc-badge" style={{color:cfg.color,background:cfg.bg,border:`0.5px solid ${cfg.border}`}}>
                         {sigL(pos.signal, lang)}
                       </span>
-                      {hasAlert && (
-                        <span style={{fontSize:14}}>🔔</span>
-                      )}
+                      {hasAlert && <span style={{fontSize:14}}>🔔</span>}
                     </div>
                     <div className="sc-name">{pos.companyName}</div>
                   </div>
@@ -476,13 +405,12 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
                   </div>
                 </div>
 
-                {/* Live Price */}
                 <div className="sc-price-row">
                   {calc ? (
                     <>
                       <span className="sc-price">${calc.currentPrice.toFixed(2)}</span>
-                      <span style={{color: isProfitable ? '#2EC98A' : '#E85555', fontSize:13}}>
-                        {isProfitable ? '▲' : '▼'} {Math.abs(calc.pnlPct).toFixed(2)}%
+                      <span style={{color:isProfitable?'#2EC98A':'#E85555',fontSize:13}}>
+                        {isProfitable?'▲':'▼'} {Math.abs(calc.pnlPct).toFixed(2)}%
                       </span>
                     </>
                   ) : (
@@ -490,7 +418,6 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
                   )}
                 </div>
 
-                {/* Entry Info */}
                 <div className="port-levels">
                   <div className="port-level">
                     <span className="sc-lv-k">{T('Entry','دخول')}</span>
@@ -506,13 +433,12 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
                   </div>
                 </div>
 
-                {/* P&L */}
                 {calc && (
-                  <div style={{background: isProfitable ? 'rgba(46,201,138,0.08)' : 'rgba(232,85,85,0.08)', borderRadius:8, padding:'8px 12px', border:`0.5px solid ${isProfitable ? '#145C3C' : '#6A2020'}`}}>
+                  <div style={{background:isProfitable?'rgba(46,201,138,0.08)':'rgba(232,85,85,0.08)',borderRadius:8,padding:'8px 12px',border:`0.5px solid ${isProfitable?'#145C3C':'#6A2020'}`}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                       <span style={{fontSize:11,color:'var(--t2)'}}>{T('P&L','الربح/الخسارة')}</span>
-                      <span style={{fontFamily:'monospace',fontSize:13,fontWeight:500,color: isProfitable ? '#2EC98A' : '#E85555'}}>
-                        {isProfitable ? '+' : ''}${calc.pnl.toFixed(2)}
+                      <span style={{fontFamily:'monospace',fontSize:13,fontWeight:500,color:isProfitable?'#2EC98A':'#E85555'}}>
+                        {isProfitable?'+':''}${calc.pnl.toFixed(2)}
                       </span>
                     </div>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:3}}>
@@ -524,7 +450,6 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
                   </div>
                 )}
 
-                {/* Targets */}
                 {(pos.stopLoss > 0 || pos.target1 > 0) && (
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:5}}>
                     {pos.stopLoss > 0 && (
@@ -548,14 +473,10 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
                   </div>
                 )}
 
-                {/* Notes */}
                 {pos.notes && (
-                  <div style={{fontSize:11,color:'var(--t3)',fontStyle:'italic'}}>
-                    {pos.notes}
-                  </div>
+                  <div style={{fontSize:11,color:'var(--t3)',fontStyle:'italic'}}>{pos.notes}</div>
                 )}
 
-                {/* Analyze Button */}
                 <button
                   onClick={() => onAnalyze(pos.ticker)}
                   className="sc-more"
@@ -569,7 +490,7 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
         </div>
       )}
 
-      {/* ✅ Form Modal */}
+      {/* Form Modal */}
       {showForm && (
         <div className="overlay" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
           <div className="panel" style={{maxWidth:480}}>
@@ -577,18 +498,15 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
             <h2 style={{fontFamily:'Cormorant Garamond,serif',fontSize:22,fontWeight:700,marginBottom:16}}>
               {T('Add New Position','إضافة صفقة جديدة')}
             </h2>
-
             <div style={{display:'flex',flexDirection:'column',gap:12}}>
               <div>
                 <label style={{fontSize:11,color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.5px'}}>{T('Ticker *','الرمز *')}</label>
                 <input className="sinp" style={{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,padding:'8px 12px',width:'100%',marginTop:4}} placeholder="AAPL" value={form.ticker} onChange={e => setForm({...form, ticker: e.target.value.toUpperCase()})}/>
               </div>
-
               <div>
                 <label style={{fontSize:11,color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.5px'}}>{T('Company Name','اسم الشركة')}</label>
                 <input className="sinp" style={{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,padding:'8px 12px',width:'100%',marginTop:4}} placeholder="Apple Inc." value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})}/>
               </div>
-
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
                 <div>
                   <label style={{fontSize:11,color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.5px'}}>{T('Entry Price *','سعر الدخول *')}</label>
@@ -599,7 +517,6 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
                   <input className="sinp" style={{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,padding:'8px 12px',width:'100%',marginTop:4}} placeholder="10" type="number" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})}/>
                 </div>
               </div>
-
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
                 <div>
                   <label style={{fontSize:11,color:'#E85555',textTransform:'uppercase',letterSpacing:'.5px'}}>Stop Loss</label>
@@ -614,7 +531,6 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
                   <input className="sinp" style={{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,padding:'8px 12px',width:'100%',marginTop:4}} placeholder="180.00" type="number" value={form.target2} onChange={e => setForm({...form, target2: e.target.value})}/>
                 </div>
               </div>
-
               <div>
                 <label style={{fontSize:11,color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.5px'}}>{T('Signal','الإشارة')}</label>
                 <select style={{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,padding:'8px 12px',width:'100%',marginTop:4,color:'var(--t)',fontFamily:'DM Sans,sans-serif',fontSize:13}} value={form.signal} onChange={e => setForm({...form, signal: e.target.value as Signal})}>
@@ -625,12 +541,10 @@ export default function Portfolio({ lang, onAnalyze }: PortfolioProps) {
                   <option value="strongSell">{T('Strong Sell','بيع قوي')}</option>
                 </select>
               </div>
-
               <div>
                 <label style={{fontSize:11,color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.5px'}}>{T('Notes','ملاحظات')}</label>
                 <input className="sinp" style={{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,padding:'8px 12px',width:'100%',marginTop:4}} placeholder={T('Optional notes...','ملاحظات اختيارية...')} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})}/>
               </div>
-
               <button className="abtn" style={{marginTop:8,justifyContent:'center'}} onClick={addPosition} disabled={!form.ticker || !form.entryPrice || !form.quantity}>
                 <Plus size={14}/> {T('Add Position','إضافة الصفقة')}
               </button>
